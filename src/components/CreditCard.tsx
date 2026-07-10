@@ -30,9 +30,16 @@ export const CreditCard: React.FC<CreditCardProps> = ({
   brand,
   flipped = false,
 }) => {
-  const rotation = useRef(new Animated.Value(0)).current;
+  const rotation = useRef(new Animated.Value(flipped ? 1 : 0)).current;
+  const mounted = useRef(false);
 
   useEffect(() => {
+    // En el montaje fijamos el valor sin animar (evita un timer inútil).
+    if (!mounted.current) {
+      mounted.current = true;
+      rotation.setValue(flipped ? 1 : 0);
+      return;
+    }
     Animated.timing(rotation, {
       toValue: flipped ? 1 : 0,
       duration: 500,
