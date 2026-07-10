@@ -64,7 +64,12 @@ export const ProductDetailScreen: React.FC<
               color={favorite ? theme.colors.primary : theme.colors.onSurface}
             />
           </Pressable>
-          <View>
+          <Pressable
+            onPress={() => navigation.navigate('Cart')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Ver carrito"
+          >
             <Icon name="shopping-cart" size={24} color={theme.colors.onSurface} />
             {cartCount > 0 ? (
               <View style={styles.cartBadge}>
@@ -73,7 +78,7 @@ export const ProductDetailScreen: React.FC<
                 </AppText>
               </View>
             ) : null}
-          </View>
+          </Pressable>
         </View>
       </View>
 

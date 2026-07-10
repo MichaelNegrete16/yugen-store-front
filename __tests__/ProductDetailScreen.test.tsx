@@ -46,7 +46,7 @@ const renderScreen = (store: ReturnType<typeof makeStore>) => {
       </Provider>,
     );
   });
-  return tree;
+  return Object.assign(tree, { navigation });
 };
 
 describe('ProductDetailScreen', () => {
@@ -63,5 +63,12 @@ describe('ProductDetailScreen', () => {
     const button = tree.root.findByProps({ testID: 'add-to-cart' });
     ReactTestRenderer.act(() => button.props.onPress());
     expect(selectCartCount(store.getState().cart.items)).toBe(1);
+  });
+
+  it('el ícono del carrito lleva al Cart', () => {
+    const tree = renderScreen(makeStore());
+    const cart = tree.root.findByProps({ accessibilityLabel: 'Ver carrito' });
+    ReactTestRenderer.act(() => cart.props.onPress());
+    expect((tree as any).navigation.navigate).toHaveBeenCalledWith('Cart');
   });
 });
