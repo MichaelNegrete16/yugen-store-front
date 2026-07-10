@@ -19,7 +19,6 @@ import type { RootStackScreenProps } from '../navigation/types';
 
 const AVATAR = require('../../assets/images/avatar.jpg');
 const HERO = require('../../assets/images/hero-sakura.jpg');
-const LOGO = require('../../assets/images/logo.png');
 
 const NAV_ITEMS = ['home', 'local-cafe', 'search', 'shopping-cart', 'person'];
 
@@ -43,16 +42,13 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           <Icon name="menu" size={26} color={theme.colors.primary} />
           <View style={styles.greeting}>
             <AppText variant="labelCaps" color="onSurfaceVariant">
-              こんにちは
+              Hola,
             </AppText>
             <AppText variant="headlineMd" color="onSurface" style={styles.greetingName}>
-              Welcome back
+              Bienvenido de nuevo
             </AppText>
           </View>
-          <View style={styles.headerRight}>
-            <Image source={LOGO} style={styles.headerLogo} resizeMode="contain" />
-            <Image source={AVATAR} style={styles.avatar} />
-          </View>
+          <Image source={AVATAR} style={styles.avatar} />
         </View>
 
         {/* Buscador */}
@@ -65,7 +61,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Explore the collection..."
+            placeholder="Explora la colección..."
             placeholderTextColor={theme.colors.onSurfaceVariant}
           />
         </View>
@@ -86,11 +82,11 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
             <AppText variant="headlineMd" color="onPrimary" style={styles.heroTitle}>
-              Spring Sakura{'\n'}Collection
+              Colección Sakura{'\n'}de Primavera
             </AppText>
             <Pressable style={styles.heroButton} accessibilityRole="button">
               <AppText variant="labelCaps" color="onSurface">
-                Shop now
+                Comprar ahora
               </AppText>
             </Pressable>
           </View>
@@ -98,15 +94,21 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
 
         {/* Curated Goods */}
         <View style={styles.sectionHeader}>
-          <AppText variant="headlineMd" color="onSurface">
-            Curated Goods
+          <AppText
+            variant="headlineMd"
+            color="onSurface"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={styles.sectionTitle}
+          >
+            Selección Curada
           </AppText>
-          <AppText variant="labelCaps" color="primary">
-            View all
+          <AppText variant="labelCaps" color="primary" style={styles.viewAll}>
+            Ver todo
           </AppText>
         </View>
         <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.sectionSub}>
-          Handpicked for silence and form.
+          Elegidos para el silencio y la forma.
         </AppText>
 
         {/* Grid de productos */}
@@ -150,9 +152,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   greeting: { flex: 1, marginLeft: theme.spacing.stackMd },
-  greetingName: { fontSize: 22, marginTop: 2 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
-  headerLogo: { width: 28, height: 28, marginRight: theme.spacing.stackSm },
+  greetingName: { fontSize: 20, marginTop: 2 },
   avatar: {
     width: 44,
     height: 44,
@@ -202,10 +202,12 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: theme.spacing.stackLg,
   },
+  sectionTitle: { flex: 1, marginRight: theme.spacing.stackMd },
+  viewAll: { flexShrink: 0 },
   sectionSub: { marginTop: 4 },
   grid: {
     flexDirection: 'row',
