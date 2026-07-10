@@ -12,6 +12,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Home: undefined;
   ProductDetail: { productId: string };
+  Cart: undefined;
   Checkout: undefined;
   TransactionResult: { transactionId: string };
 };
