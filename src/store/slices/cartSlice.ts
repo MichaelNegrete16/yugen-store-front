@@ -28,6 +28,19 @@ const cartSlice = createSlice({
         state.items.push({ productId: action.payload, qty: 1 });
       }
     },
+    addToCart: (
+      state,
+      action: PayloadAction<{ productId: string; qty: number }>,
+    ) => {
+      const { productId, qty } = action.payload;
+      if (qty <= 0) return;
+      const existing = state.items.find((i) => i.productId === productId);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        state.items.push({ productId, qty });
+      }
+    },
     decrementItem: (state, action: PayloadAction<string>) => {
       const existing = state.items.find((i) => i.productId === action.payload);
       if (!existing) return;
@@ -45,7 +58,7 @@ const cartSlice = createSlice({
   },
 });
 
-export const { addItem, decrementItem, removeItem, clearCart } =
+export const { addItem, addToCart, decrementItem, removeItem, clearCart } =
   cartSlice.actions;
 
 /** Número total de unidades en el carrito. */
