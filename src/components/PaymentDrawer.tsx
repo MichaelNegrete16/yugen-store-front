@@ -69,7 +69,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar pago" />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.panelWrap}
         >
           <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
@@ -151,22 +151,22 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
                   </Field>
                 </View>
               </View>
-            </ScrollView>
 
-            <Pressable
-              testID="confirm-payment"
-              style={[styles.confirm, !complete && styles.confirmDisabled]}
-              onPress={handleConfirm}
-              disabled={!complete}
-              accessibilityRole="button"
-            >
-              <AppText variant="labelCaps" color="onPrimary">
-                Confirmar pago — {formatCop(amountCop)}
+              <Pressable
+                testID="confirm-payment"
+                style={[styles.confirm, !complete && styles.confirmDisabled]}
+                onPress={handleConfirm}
+                disabled={!complete}
+                accessibilityRole="button"
+              >
+                <AppText variant="labelCaps" color="onPrimary">
+                  Confirmar pago — {formatCop(amountCop)}
+                </AppText>
+              </Pressable>
+              <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
+                Al confirmar aceptas nuestros términos de comercio artesanal.
               </AppText>
-            </Pressable>
-            <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
-              Al confirmar aceptas nuestros términos de comercio artesanal.
-            </AppText>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: theme.spacing.stackLg,
   },
-  scroll: { paddingBottom: theme.spacing.stackMd },
+  scroll: { paddingBottom: theme.spacing.stackLg },
   form: { marginTop: theme.spacing.stackLg, gap: theme.spacing.stackMd },
   field: {
     borderBottomWidth: 1,
