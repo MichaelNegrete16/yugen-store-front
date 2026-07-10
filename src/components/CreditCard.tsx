@@ -134,7 +134,11 @@ const CARD_RADIUS = 20;
 const styles = StyleSheet.create({
   wrapper: { width: '100%', aspectRatio: 1.58 },
   card: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: CARD_RADIUS,
     backgroundColor: '#121212',
     padding: theme.spacing.stackMd,
