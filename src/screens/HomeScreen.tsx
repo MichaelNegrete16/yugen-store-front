@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,6 +23,10 @@ const HERO = require('../../assets/images/hero-sakura.jpg');
 
 const NAV_ITEMS = ['home', 'local-cafe', 'search', 'shopping-cart', 'person'];
 
+/** Chip "Todos" (ver todo el catálogo) + las categorías del catálogo. */
+const ALL_KEY = 'all';
+const FILTERS = [{ key: ALL_KEY, label: 'Todos', icon: 'grid-view' }, ...CATEGORIES];
+
 /** Paso 2/7 — Home del marketplace Yūgen. */
 export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   navigation,
@@ -31,6 +35,16 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   const dispatch = useAppDispatch();
   const products = useAppSelector((state) => state.products.items);
   const cartCount = useAppSelector((state) => selectCartCount(state.cart.items));
+
+  const [category, setCategory] = useState<string>(ALL_KEY);
+
+  const visibleProducts = useMemo(
+    () =>
+      category === ALL_KEY
+        ? products
+        : products.filter((p) => p.category === category),
+    [products, category],
+  );
 
   return (
     <View style={styles.container}>
@@ -43,7 +57,6 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
       >
         {/* Header */}
         <View style={styles.header}>
-          <Icon name="menu" size={26} color={theme.colors.primary} />
           <View style={styles.greeting}>
             <AppText variant="labelCaps" color="onSurfaceVariant">
               Hola,
@@ -76,8 +89,15 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categories}
         >
-          {CATEGORIES.map((c, i) => (
-            <CategoryChip key={c.key} label={c.label} icon={c.icon} active={i === 0} />
+          {FILTERS.map((c) => (
+            <CategoryChip
+              key={c.key}
+              testID={`cat-${c.key}`}
+              label={c.label}
+              icon={c.icon}
+              active={category === c.key}
+              onPress={() => setCategory(c.key)}
+            />
           ))}
         </ScrollView>
 
@@ -116,19 +136,28 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
         </AppText>
 
         {/* Grid de productos */}
-        <View style={styles.grid}>
-          {products.map((product) => (
-            <View key={product.id} style={styles.gridItem}>
-              <ProductCard
-                product={product}
-                onPress={() =>
-                  navigation.navigate('ProductDetail', { productId: product.id })
-                }
-                onAdd={() => dispatch(addItem(product.id))}
-              />
-            </View>
-          ))}
-        </View>
+        {visibleProducts.length > 0 ? (
+          <View style={styles.grid}>
+            {visibleProducts.map((product) => (
+              <View key={product.id} style={styles.gridItem}>
+                <ProductCard
+                  product={product}
+                  onPress={() =>
+                    navigation.navigate('ProductDetail', { productId: product.id })
+                  }
+                  onAdd={() => dispatch(addItem(product.id))}
+                />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyCategory} testID="empty-category">
+            <Icon name="spa" size={40} color={theme.colors.surfaceContainerHighest} />
+            <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.emptyCategoryText}>
+              Pronto sumaremos piezas a esta colección.
+            </AppText>
+          </View>
+        )}
       </ScrollView>
 
       {/* Nav inferior */}
@@ -175,7 +204,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  greeting: { flex: 1, marginLeft: theme.spacing.stackMd },
+  greeting: { flex: 1 },
   greetingName: { fontSize: 20, marginTop: 2 },
   search: {
     flexDirection: 'row',
@@ -240,6 +269,15 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '48%',
     marginBottom: theme.spacing.stackLg,
+  },
+  emptyCategory: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.stackXl,
+  },
+  emptyCategoryText: {
+    marginTop: theme.spacing.stackSm,
+    textAlign: 'center',
   },
   bottomNav: {
     position: 'absolute',
