@@ -135,7 +135,18 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
       {/* Nav inferior */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom || 12 }]}>
         {NAV_ITEMS.map((name, i) => (
-          <View key={name}>
+          <Pressable
+            key={name}
+            hitSlop={8}
+            disabled={name !== 'shopping-cart'}
+            onPress={
+              name === 'shopping-cart'
+                ? () => navigation.navigate('Checkout')
+                : undefined
+            }
+            accessibilityRole={name === 'shopping-cart' ? 'button' : undefined}
+            accessibilityLabel={name === 'shopping-cart' ? 'Ver carrito' : undefined}
+          >
             <Icon
               name={name}
               size={26}
@@ -148,7 +159,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
                 </AppText>
               </View>
             ) : null}
-          </View>
+          </Pressable>
         ))}
       </View>
     </View>
