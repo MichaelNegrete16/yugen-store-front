@@ -7,6 +7,7 @@ import { CheckoutScreen } from '../src/screens/CheckoutScreen';
 import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
+import ordersReducer from '../src/store/slices/ordersSlice';
 
 const makeStore = (cartItems: CartItem[] = []) =>
   configureStore({
@@ -14,6 +15,7 @@ const makeStore = (cartItems: CartItem[] = []) =>
       cart: cartReducer,
       products: productsReducer,
       transaction: transactionReducer,
+      orders: ordersReducer,
     },
     preloadedState: { cart: { items: cartItems } },
   });
@@ -130,11 +132,18 @@ describe('CheckoutScreen', () => {
       tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
     );
 
-    const tx = store.getState().transaction;
-    expect(tx.status).toBe('pending');
-    expect(tx.card).toEqual({ last4: '1111', brand: 'Visa', holder: 'Kenji Sato' });
-    // El monto de la transacción es el gran total (con envío + IVA − descuento).
-    expect(tx.amountCop).toBeGreaterThan(0);
+    const state = store.getState();
+    expect(state.transaction.status).toBe('pending');
+    expect(state.transaction.card).toEqual({ last4: '1111', brand: 'Visa', holder: 'Kenji Sato' });
+    expect(state.transaction.amountCop).toBeGreaterThan(0);
+    // Se registra la compra en el historial y se vacía el carrito.
+    expect(state.orders.items).toHaveLength(1);
+    expect(state.orders.items[0]).toMatchObject({
+      cardLast4: '1111',
+      cardBrand: 'Visa',
+      status: 'approved',
+    });
+    expect(state.cart.items).toHaveLength(0);
     expect(navigation.navigate).toHaveBeenCalledWith(
       'TransactionResult',
       expect.objectContaining({ transactionId: expect.stringContaining('YUGEN-1111') }),
