@@ -46,6 +46,20 @@ const renderScreen = (store: ReturnType<typeof makeStore>) => {
   return { tree, navigation };
 };
 
+const setField = (tree: ReactTestRenderer.ReactTestRenderer, testID: string, value: string) => {
+  const input = tree.root.findByProps({ testID });
+  ReactTestRenderer.act(() => input.props.onChangeText(value));
+};
+
+/** Completa los datos de envío (requisito para poder pagar). */
+const fillShipping = (tree: ReactTestRenderer.ReactTestRenderer) => {
+  setField(tree, 'ship-firstName', 'Kenji');
+  setField(tree, 'ship-lastName', 'Sato');
+  setField(tree, 'ship-address', 'Calle 10 # 5-51');
+  setField(tree, 'ship-city', 'Bogotá');
+  setField(tree, 'ship-postal', '110111');
+};
+
 describe('CheckoutScreen', () => {
   it('muestra el estado vacío cuando no hay ítems', () => {
     const { tree } = renderScreen(makeStore());
@@ -76,9 +90,21 @@ describe('CheckoutScreen', () => {
     expect(collectText(total.props.children).join('')).toContain('$979.650');
   });
 
-  it('abre el drawer de pago al presionar "Pagar con tarjeta"', () => {
+  it('no habilita el pago sin los datos de envío', () => {
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree } = renderScreen(store);
+    const pay = tree.root.findByProps({ testID: 'pay-button' });
+    expect(pay.props.accessibilityState).toEqual({ disabled: true });
+    // Tras completar el envío, se habilita.
+    fillShipping(tree);
+    const payAfter = tree.root.findByProps({ testID: 'pay-button' });
+    expect(payAfter.props.accessibilityState).toEqual({ disabled: false });
+  });
+
+  it('abre el drawer de pago con los datos de envío completos', () => {
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
+    const { tree } = renderScreen(store);
+    fillShipping(tree);
     // Antes de abrir no existe el formulario de tarjeta.
     expect(tree.root.findAllByProps({ testID: 'input-number' })).toHaveLength(0);
     const pay = tree.root.findByProps({ testID: 'pay-button' });
@@ -90,18 +116,15 @@ describe('CheckoutScreen', () => {
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
+    fillShipping(tree);
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
     );
 
-    const setField = (testID: string, value: string) => {
-      const input = tree.root.findByProps({ testID });
-      ReactTestRenderer.act(() => input.props.onChangeText(value));
-    };
-    setField('input-number', '4111111111111111');
-    setField('input-holder', 'Kenji Sato');
-    setField('input-expiry', '1226');
-    setField('input-cvv', '123');
+    setField(tree, 'input-number', '4111111111111111');
+    setField(tree, 'input-holder', 'Kenji Sato');
+    setField(tree, 'input-expiry', '1226');
+    setField(tree, 'input-cvv', '123');
 
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
@@ -121,6 +144,7 @@ describe('CheckoutScreen', () => {
   it('no confirma con datos de tarjeta incompletos', () => {
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
+    fillShipping(tree);
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
     );

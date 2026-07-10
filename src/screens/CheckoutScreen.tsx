@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
+import { Avatar } from '../components/Avatar';
 import { PaymentDrawer } from '../components/PaymentDrawer';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
@@ -17,8 +18,6 @@ import { computeOrderSummary, DISCOUNT_CODE } from '../utils/pricing';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startTransaction, CardInfo } from '../store/slices/transactionSlice';
 import type { RootStackScreenProps } from '../navigation/types';
-
-const AVATAR = require('../../assets/images/avatar.jpg');
 
 /**
  * Paso 4/7 — Checkout: datos de envío, artículos y resumen del pedido.
@@ -64,6 +63,14 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
   const empty = lines.length === 0;
 
+  // El pago solo se habilita con los datos de envío completos.
+  const shippingComplete =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    address.trim().length > 0 &&
+    city.trim().length > 0 &&
+    postal.trim().length > 0;
+
   const handleConfirm = (card: CardInfo) => {
     const reference = `YUGEN-${card.last4}-${Date.now()}`;
     dispatch(
@@ -90,7 +97,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
             Checkout
           </AppText>
         </View>
-        <Image source={AVATAR} style={styles.avatar} />
+        <Avatar />
       </View>
 
       {empty ? (
@@ -124,13 +131,13 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           </AppText>
           <View style={styles.formCard}>
             <View style={styles.formRow}>
-              <ShippingField label="NOMBRE" value={firstName} onChangeText={setFirstName} placeholder="Kenji" style={styles.formRowItem} />
-              <ShippingField label="APELLIDO" value={lastName} onChangeText={setLastName} placeholder="Sato" style={styles.formRowItem} />
+              <ShippingField testID="ship-firstName" label="NOMBRE" value={firstName} onChangeText={setFirstName} placeholder="Kenji" style={styles.formRowItem} />
+              <ShippingField testID="ship-lastName" label="APELLIDO" value={lastName} onChangeText={setLastName} placeholder="Sato" style={styles.formRowItem} />
             </View>
-            <ShippingField label="DIRECCIÓN DE ENTREGA" value={address} onChangeText={setAddress} placeholder="Calle 10 # 5-51" />
+            <ShippingField testID="ship-address" label="DIRECCIÓN DE ENTREGA" value={address} onChangeText={setAddress} placeholder="Calle 10 # 5-51" />
             <View style={styles.formRow}>
-              <ShippingField label="CIUDAD" value={city} onChangeText={setCity} placeholder="Bogotá" style={styles.formRowItem} />
-              <ShippingField label="CÓDIGO POSTAL" value={postal} onChangeText={setPostal} placeholder="110111" keyboardType="number-pad" style={styles.formRowItem} />
+              <ShippingField testID="ship-city" label="CIUDAD" value={city} onChangeText={setCity} placeholder="Bogotá" style={styles.formRowItem} />
+              <ShippingField testID="ship-postal" label="CÓDIGO POSTAL" value={postal} onChangeText={setPostal} placeholder="110111" keyboardType="number-pad" style={styles.formRowItem} />
             </View>
           </View>
 
@@ -189,17 +196,25 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
             <Pressable
               testID="pay-button"
-              style={styles.payButton}
+              style={[styles.payButton, !shippingComplete && styles.payButtonDisabled]}
               onPress={() => setPayOpen(true)}
+              disabled={!shippingComplete}
               accessibilityRole="button"
+              accessibilityState={{ disabled: !shippingComplete }}
             >
               <AppText variant="labelCaps" color="onPrimary">
                 Pagar con tarjeta
               </AppText>
               <Icon name="chevron-right" size={22} color={theme.colors.onPrimary} />
             </Pressable>
-            <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.secure}>
-              Pago cifrado SSL • Devoluciones en 30 días
+            <AppText
+              variant="labelCaps"
+              color={shippingComplete ? 'onSurfaceVariant' : 'error'}
+              style={styles.secure}
+            >
+              {shippingComplete
+                ? 'Pago cifrado SSL • Devoluciones en 30 días'
+                : 'Completa tus datos de envío para continuar'}
             </AppText>
           </View>
         </ScrollView>
@@ -222,13 +237,15 @@ const ShippingField: React.FC<{
   onChangeText: (t: string) => void;
   placeholder?: string;
   keyboardType?: 'default' | 'number-pad';
+  testID?: string;
   style?: object;
-}> = ({ label, value, onChangeText, placeholder, keyboardType = 'default', style }) => (
+}> = ({ label, value, onChangeText, placeholder, keyboardType = 'default', testID, style }) => (
   <View style={[styles.field, style]}>
     <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.fieldLabel}>
       {label}
     </AppText>
     <TextInput
+      testID={testID}
       style={styles.input}
       value={value}
       onChangeText={onChangeText}
@@ -266,14 +283,6 @@ const styles = StyleSheet.create({
   },
   topLeft: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.stackMd },
   topTitle: { fontSize: 26 },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineVariant,
-  },
   scroll: {
     paddingHorizontal: theme.spacing.marginMobile,
     paddingBottom: theme.spacing.stackLg,
@@ -357,6 +366,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.full,
     marginTop: theme.spacing.stackLg,
   },
+  payButtonDisabled: { backgroundColor: theme.colors.surfaceContainerHighest },
   secure: {
     fontSize: 10,
     textAlign: 'center',
