@@ -8,7 +8,9 @@ module.exports = {
     'node_modules/(?!(?:.pnpm/)?(' +
       '@react-native|react-native|@react-native/js-polyfills|' +
       '@react-navigation|react-native-screens|react-native-safe-area-context|' +
-      'react-native-vector-icons' +
+      'react-native-vector-icons|' +
+      '@reduxjs/toolkit|redux|redux-thunk|react-redux|immer|reselect|' +
+      'redux-persist|redux-persist-transform-encrypt|@react-native-async-storage' +
       ')/)',
   ],
 };

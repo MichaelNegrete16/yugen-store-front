@@ -13,7 +13,9 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
 import { CategoryChip } from '../components/CategoryChip';
 import { ProductCard } from '../components/ProductCard';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { CATEGORIES } from '../data/products';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { addItem, selectCartCount } from '../store/slices/cartSlice';
 import { theme } from '../theme';
 import type { RootStackScreenProps } from '../navigation/types';
 
@@ -27,6 +29,9 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const products = useAppSelector((state) => state.products.items);
+  const cartCount = useAppSelector((state) => selectCartCount(state.cart.items));
 
   return (
     <View style={styles.container}>
@@ -113,13 +118,14 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
 
         {/* Grid de productos */}
         <View style={styles.grid}>
-          {PRODUCTS.map((product) => (
+          {products.map((product) => (
             <View key={product.id} style={styles.gridItem}>
               <ProductCard
                 product={product}
                 onPress={() =>
                   navigation.navigate('ProductDetail', { productId: product.id })
                 }
+                onAdd={() => dispatch(addItem(product.id))}
               />
             </View>
           ))}
@@ -129,12 +135,20 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
       {/* Nav inferior */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom || 12 }]}>
         {NAV_ITEMS.map((name, i) => (
-          <Icon
-            key={name}
-            name={name}
-            size={26}
-            color={i === 0 ? theme.colors.primary : theme.colors.onSurfaceVariant}
-          />
+          <View key={name}>
+            <Icon
+              name={name}
+              size={26}
+              color={i === 0 ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            />
+            {name === 'shopping-cart' && cartCount > 0 ? (
+              <View style={styles.cartBadge}>
+                <AppText variant="labelCaps" color="onPrimary" style={styles.cartBadgeText}>
+                  {cartCount}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
         ))}
       </View>
     </View>
@@ -231,6 +245,22 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLowest,
     borderTopWidth: 1,
     borderTopColor: theme.colors.surfaceContainerHigh,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    fontSize: 10,
+    letterSpacing: 0,
   },
 });
 
