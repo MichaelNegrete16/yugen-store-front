@@ -29,8 +29,8 @@ describe('SplashScreen', () => {
       );
     });
     const text = collectText(tree.toJSON()).join(' ');
-    expect(text).toContain('Discover the Beauty of Japan');
-    expect(text).toContain('Loading Excellence');
+    expect(text).toContain('Descubre la belleza de Japón');
+    expect(text).toContain('Cargando excelencia');
     ReactTestRenderer.act(() => tree.unmount());
   });
 

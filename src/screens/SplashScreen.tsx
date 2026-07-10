@@ -99,7 +99,7 @@ export const SplashScreen: React.FC<RootStackScreenProps<'Splash'>> = ({
 
         <Animated.View style={[styles.tagWrap, { opacity: textOpacity }]}>
           <AppText style={styles.tagline} color="onSurfaceVariant">
-            Discover the Beauty of Japan
+            Descubre la belleza de Japón
           </AppText>
         </Animated.View>
       </View>
@@ -114,7 +114,7 @@ export const SplashScreen: React.FC<RootStackScreenProps<'Splash'>> = ({
           color="onSurfaceVariant"
           style={styles.loadingLabel}
         >
-          Loading Excellence
+          Cargando excelencia
         </AppText>
       </View>
     </View>

@@ -17,11 +17,11 @@ export interface Product {
 
 /** Categorías del marketplace (icono = nombre en MaterialIcons). */
 export const CATEGORIES: { key: string; label: string; icon: string }[] = [
-  { key: 'tea', label: 'Tea', icon: 'local-cafe' },
-  { key: 'food', label: 'Food', icon: 'restaurant' },
-  { key: 'gaming', label: 'Gaming', icon: 'sports-esports' },
-  { key: 'decor', label: 'Decor', icon: 'lightbulb' },
-  { key: 'gifts', label: 'Gifts', icon: 'card-giftcard' },
+  { key: 'tea', label: 'Té', icon: 'local-cafe' },
+  { key: 'food', label: 'Comida', icon: 'restaurant' },
+  { key: 'gaming', label: 'Juegos', icon: 'sports-esports' },
+  { key: 'decor', label: 'Decoración', icon: 'lightbulb' },
+  { key: 'gifts', label: 'Regalos', icon: 'card-giftcard' },
 ];
 
 /**
@@ -31,20 +31,20 @@ export const CATEGORIES: { key: string; label: string; icon: string }[] = [
 export const PRODUCTS: Product[] = [
   {
     id: 'tea-set',
-    name: 'Black Basalt Tea Set',
+    name: 'Juego de Té de Basalto',
     priceCop: 320000,
     category: 'tea',
     image: require('../../assets/images/products/tea-set.jpg'),
     rating: 4.9,
     stock: 8,
-    badge: 'New Arrival',
+    badge: 'Nuevo',
     description:
       'Juego de té japonés en basalto mate negro, hecho a mano. Sobria elegancia para el ritual diario.',
     artisan: 'Kenzo Tanaka',
   },
   {
     id: 'writing-set',
-    name: 'Ebonite Writing Set',
+    name: 'Set de Escritura en Ebonita',
     priceCop: 245000,
     category: 'gifts',
     image: require('../../assets/images/products/writing-set.jpg'),
@@ -56,13 +56,13 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'matcha-set',
-    name: 'The Kuroi Matcha Ritual Set',
+    name: 'Set Ritual de Matcha Kuroi',
     priceCop: 340000,
     category: 'tea',
     image: require('../../assets/images/products/matcha-set.jpg'),
     rating: 5.0,
     stock: 3,
-    badge: 'Limited Edition',
+    badge: 'Edición Limitada',
     description:
       'Incluye 40g de Matcha de Uji grado ceremonial, de granjas familiares sostenibles.',
     artisan: 'Takuya Matsuo',
