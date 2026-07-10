@@ -11,7 +11,7 @@ const collectText = (node: any): string[] => {
 };
 
 describe('ProductCard', () => {
-  const product = PRODUCTS[0]; // Black Basalt Tea Set - $320.000
+  const product = PRODUCTS[0]; // $320.000
 
   it('muestra nombre y precio formateado en COP', () => {
     let tree!: ReactTestRenderer.ReactTestRenderer;
@@ -21,7 +21,7 @@ describe('ProductCard', () => {
       );
     });
     const text = collectText(tree.toJSON()).join(' ');
-    expect(text).toContain('Black Basalt Tea Set');
+    expect(text).toContain(product.name);
     expect(text).toContain('$320.000');
   });
 
