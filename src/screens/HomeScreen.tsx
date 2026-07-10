@@ -27,6 +27,13 @@ const NAV_ITEMS = ['home', 'local-cafe', 'search', 'shopping-cart', 'person'];
 const ALL_KEY = 'all';
 const FILTERS = [{ key: ALL_KEY, label: 'Todos', icon: 'grid-view' }, ...CATEGORIES];
 
+/** Normaliza para buscar sin distinguir mayúsculas ni acentos. */
+const normalize = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+
 /** Paso 2/7 — Home del marketplace Yūgen. */
 export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   navigation,
@@ -37,14 +44,24 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   const cartCount = useAppSelector((state) => selectCartCount(state.cart.items));
 
   const [category, setCategory] = useState<string>(ALL_KEY);
+  const [query, setQuery] = useState('');
 
-  const visibleProducts = useMemo(
-    () =>
-      category === ALL_KEY
-        ? products
-        : products.filter((p) => p.category === category),
-    [products, category],
-  );
+  const q = query.trim();
+
+  const visibleProducts = useMemo(() => {
+    // La búsqueda tiene prioridad y corre sobre todo el catálogo.
+    if (q) {
+      const nq = normalize(q);
+      return products.filter(
+        (p) =>
+          normalize(p.name).includes(nq) ||
+          (p.artisan ? normalize(p.artisan).includes(nq) : false),
+      );
+    }
+    return category === ALL_KEY
+      ? products
+      : products.filter((p) => p.category === category);
+  }, [products, category, q]);
 
   return (
     <View style={styles.container}>
@@ -77,10 +94,20 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
             style={styles.searchIcon}
           />
           <TextInput
+            testID="search-input"
             style={styles.searchInput}
             placeholder="Explora la colección..."
             placeholderTextColor={theme.colors.onSurfaceVariant}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            autoCorrect={false}
           />
+          {q ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Limpiar búsqueda">
+              <Icon name="close" size={20} color={theme.colors.onSurfaceVariant} />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Categorías */}
@@ -125,14 +152,16 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
             adjustsFontSizeToFit
             style={styles.sectionTitle}
           >
-            Selección Curada
+            {q ? 'Resultados' : 'Selección Curada'}
           </AppText>
-          <AppText variant="labelCaps" color="primary" style={styles.viewAll}>
-            Ver todo
-          </AppText>
+          {q ? null : (
+            <AppText variant="labelCaps" color="primary" style={styles.viewAll}>
+              Ver todo
+            </AppText>
+          )}
         </View>
         <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.sectionSub}>
-          Elegidos para el silencio y la forma.
+          {q ? `Para «${q}»` : 'Elegidos para el silencio y la forma.'}
         </AppText>
 
         {/* Grid de productos */}
@@ -152,9 +181,11 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           </View>
         ) : (
           <View style={styles.emptyCategory} testID="empty-category">
-            <Icon name="spa" size={40} color={theme.colors.surfaceContainerHighest} />
+            <Icon name={q ? 'search-off' : 'spa'} size={40} color={theme.colors.surfaceContainerHighest} />
             <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.emptyCategoryText}>
-              Pronto sumaremos piezas a esta colección.
+              {q
+                ? `No encontramos resultados para «${q}».`
+                : 'Pronto sumaremos piezas a esta colección.'}
             </AppText>
           </View>
         )}
@@ -223,8 +254,8 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   categories: {
-    paddingVertical: theme.spacing.stackLg - 16,
-    marginTop: theme.spacing.stackMd,
+    paddingVertical: theme.spacing.stackSm,
+    marginTop: theme.spacing.stackSm,
   },
   hero: {
     height: 200,
