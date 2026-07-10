@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,8 +20,6 @@ import { theme } from '../theme';
 import type { RootStackScreenProps } from '../navigation/types';
 
 const HERO = require('../../assets/images/hero-sakura.jpg');
-
-const NAV_ITEMS = ['home', 'local-cafe', 'search', 'shopping-cart', 'person'];
 
 /** Chip "Todos" (ver todo el catálogo) + las categorías del catálogo. */
 const ALL_KEY = 'all';
@@ -46,6 +44,33 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   const [category, setCategory] = useState<string>(ALL_KEY);
   const [query, setQuery] = useState('');
 
+  const scrollRef = useRef<ScrollView>(null);
+  const searchRef = useRef<TextInput>(null);
+
+  const scrollToTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+  const focusSearch = () => {
+    scrollToTop();
+    searchRef.current?.focus();
+  };
+
+  /** Ítems del nav inferior (Home · Buscar · Carrito · Perfil). */
+  const navItems = [
+    { key: 'home', icon: 'home', label: 'Inicio', onPress: scrollToTop },
+    { key: 'search', icon: 'search', label: 'Buscar', onPress: focusSearch },
+    {
+      key: 'cart',
+      icon: 'shopping-cart',
+      label: 'Carrito',
+      onPress: () => navigation.navigate('Cart'),
+    },
+    {
+      key: 'profile',
+      icon: 'person',
+      label: 'Perfil',
+      onPress: () => navigation.navigate('Profile'),
+    },
+  ];
+
   const q = query.trim();
 
   const visibleProducts = useMemo(() => {
@@ -66,6 +91,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scroll,
@@ -94,6 +120,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
             style={styles.searchIcon}
           />
           <TextInput
+            ref={searchRef}
             testID="search-input"
             style={styles.searchInput}
             placeholder="Explora la colección..."
@@ -191,27 +218,23 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
         )}
       </ScrollView>
 
-      {/* Nav inferior */}
+      {/* Nav inferior (Home · Buscar · Carrito · Perfil) */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom || 12 }]}>
-        {NAV_ITEMS.map((name, i) => (
+        {navItems.map((item, i) => (
           <Pressable
-            key={name}
+            key={item.key}
+            testID={`nav-${item.key}`}
             hitSlop={8}
-            disabled={name !== 'shopping-cart'}
-            onPress={
-              name === 'shopping-cart'
-                ? () => navigation.navigate('Cart')
-                : undefined
-            }
-            accessibilityRole={name === 'shopping-cart' ? 'button' : undefined}
-            accessibilityLabel={name === 'shopping-cart' ? 'Ver carrito' : undefined}
+            onPress={item.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
           >
             <Icon
-              name={name}
+              name={item.icon}
               size={26}
               color={i === 0 ? theme.colors.primary : theme.colors.onSurfaceVariant}
             />
-            {name === 'shopping-cart' && cartCount > 0 ? (
+            {item.key === 'cart' && cartCount > 0 ? (
               <View style={styles.cartBadge}>
                 <AppText variant="labelCaps" color="onPrimary" style={styles.cartBadgeText}>
                   {cartCount}
