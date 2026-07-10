@@ -117,3 +117,9 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// react-native-vector-icons: empaqueta solo las fuentes de iconos usadas.
+project.ext.vectorIcons = [
+    iconFontNames: ['MaterialIcons.ttf', 'MaterialCommunityIcons.ttf']
+]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
