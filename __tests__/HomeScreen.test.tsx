@@ -90,4 +90,44 @@ describe('HomeScreen', () => {
     expect(tree.root.findAllByProps({ testID: 'empty-category' })).toHaveLength(0);
     expect(collectText(tree.toJSON()).join(' ')).toContain('Set de Escritura en Ebonita');
   });
+
+  const type = (tree: ReactTestRenderer.ReactTestRenderer, text: string) =>
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'search-input' }).props.onChangeText(text),
+    );
+
+  it('busca por nombre (sin acentos ni mayúsculas)', () => {
+    const { tree } = renderScreen();
+    type(tree, 'matcha');
+    const text = collectText(tree.toJSON()).join(' ');
+    expect(text).toContain('Set Ritual de Matcha Kuroi');
+    expect(text).not.toContain('Set de Escritura en Ebonita');
+  });
+
+  it('la búsqueda tiene prioridad sobre la categoría', () => {
+    const { tree } = renderScreen();
+    press(tree, 'cat-food'); // categoría sin productos
+    type(tree, 'te'); // debería buscar en todo el catálogo
+    const text = collectText(tree.toJSON()).join(' ');
+    expect(text).toContain('Juego de Té de Basalto');
+    expect(tree.root.findAllByProps({ testID: 'empty-category' })).toHaveLength(0);
+  });
+
+  it('muestra estado vacío cuando la búsqueda no encuentra nada', () => {
+    const { tree } = renderScreen();
+    type(tree, 'zzzz');
+    expect(tree.root.findAllByProps({ testID: 'empty-category' }).length).toBeGreaterThan(0);
+    expect(collectText(tree.toJSON()).join(' ')).toContain('No encontramos resultados');
+  });
+
+  it('limpia la búsqueda con el botón', () => {
+    const { tree } = renderScreen();
+    type(tree, 'matcha');
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ accessibilityLabel: 'Limpiar búsqueda' }).props.onPress(),
+    );
+    expect(tree.root.findByProps({ testID: 'search-input' }).props.value).toBe('');
+    // Al limpiar vuelve a verse todo el catálogo.
+    expect(collectText(tree.toJSON()).join(' ')).toContain('Set de Escritura en Ebonita');
+  });
 });
