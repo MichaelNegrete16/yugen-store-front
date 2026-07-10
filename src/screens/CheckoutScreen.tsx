@@ -1,23 +1,28 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TextInput,
+  Pressable,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
+import { Avatar } from '../components/Avatar';
+import { PaymentDrawer } from '../components/PaymentDrawer';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
+import { computeOrderSummary, DISCOUNT_CODE } from '../utils/pricing';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import {
-  addItem,
-  decrementItem,
-  removeItem,
-  selectCartCount,
-} from '../store/slices/cartSlice';
+import { startTransaction, CardInfo } from '../store/slices/transactionSlice';
 import type { RootStackScreenProps } from '../navigation/types';
 
 /**
- * Paso 4/7 — Checkout: resumen del carrito y total.
- * El CTA "Pagar con tarjeta" abrirá los backdrops de pago (pasos 5 y 6).
- * Por ahora el pago está mockeado; el empalme con la pasarela es lo último.
+ * Paso 4/7 — Checkout: datos de envío, artículos y resumen del pedido.
+ * El botón "Pagar con tarjeta" abre el drawer de pago (pasos 5 y 6).
+ * El pago es MOCK; el empalme con la pasarela sandbox es la última fase.
  */
 export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   navigation,
@@ -26,9 +31,15 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((s) => s.cart.items);
   const products = useAppSelector((s) => s.products.items);
-  const count = useAppSelector((s) => selectCartCount(s.cart.items));
 
-  /** Une el carrito con el catálogo para pintar cada línea con su total. */
+  const [payOpen, setPayOpen] = useState(false);
+  // Datos de envío (locales; el diseño los muestra como formulario editable).
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [postal, setPostal] = useState('');
+
   const lines = useMemo(
     () =>
       cartItems
@@ -41,33 +52,57 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
     [cartItems, products],
   );
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => lines.reduce((sum, l) => sum + l.lineTotal, 0),
     [lines],
   );
+  const summary = useMemo(
+    () => computeOrderSummary(subtotal, DISCOUNT_CODE),
+    [subtotal],
+  );
 
   const empty = lines.length === 0;
+
+  // El pago solo se habilita con los datos de envío completos.
+  const shippingComplete =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    address.trim().length > 0 &&
+    city.trim().length > 0 &&
+    postal.trim().length > 0;
+
+  const handleConfirm = (card: CardInfo) => {
+    const reference = `YUGEN-${card.last4}-${Date.now()}`;
+    dispatch(
+      startTransaction({
+        reference,
+        amountCop: summary.total,
+        productIds: lines.map((l) => l.product.id),
+        card,
+      }),
+    );
+    setPayOpen(false);
+    navigation.navigate('TransactionResult', { transactionId: reference });
+  };
 
   return (
     <View style={styles.container}>
       {/* Barra superior */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityLabel="Volver">
-          <Icon name="arrow-back" size={26} color={theme.colors.onSurface} />
-        </Pressable>
-        <AppText variant="headlineMd" color="onSurface" style={styles.topTitle}>
-          Tu carrito
-        </AppText>
-        <View style={styles.topSpacer} />
+        <View style={styles.topLeft}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityLabel="Volver">
+            <Icon name="arrow-back" size={26} color={theme.colors.primary} />
+          </Pressable>
+          <AppText variant="headlineMd" color="onSurface" style={styles.topTitle}>
+            Checkout
+          </AppText>
+        </View>
+        <Avatar />
       </View>
 
       {empty ? (
         <View style={styles.emptyState}>
-          <Icon
-            name="shopping-cart"
-            size={56}
-            color={theme.colors.surfaceContainerHighest}
-          />
+          <Icon name="shopping-cart" size={56} color={theme.colors.surfaceContainerHighest} />
           <AppText variant="headlineMd" color="onSurface" style={styles.emptyTitle}>
             Tu carrito está vacío
           </AppText>
@@ -85,95 +120,157 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           </Pressable>
         </View>
       ) : (
-        <>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}
-          >
-            <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.count}>
-              {count} {count === 1 ? 'artículo' : 'artículos'}
-            </AppText>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* 01 — Datos de envío */}
+          <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.sectionLabel}>
+            01 — DATOS DE ENVÍO
+          </AppText>
+          <View style={styles.formCard}>
+            <View style={styles.formRow}>
+              <ShippingField testID="ship-firstName" label="NOMBRE" value={firstName} onChangeText={setFirstName} placeholder="Kenji" style={styles.formRowItem} />
+              <ShippingField testID="ship-lastName" label="APELLIDO" value={lastName} onChangeText={setLastName} placeholder="Sato" style={styles.formRowItem} />
+            </View>
+            <ShippingField testID="ship-address" label="DIRECCIÓN DE ENTREGA" value={address} onChangeText={setAddress} placeholder="Calle 10 # 5-51" />
+            <View style={styles.formRow}>
+              <ShippingField testID="ship-city" label="CIUDAD" value={city} onChangeText={setCity} placeholder="Bogotá" style={styles.formRowItem} />
+              <ShippingField testID="ship-postal" label="CÓDIGO POSTAL" value={postal} onChangeText={setPostal} placeholder="110111" keyboardType="number-pad" style={styles.formRowItem} />
+            </View>
+          </View>
 
-            {lines.map(({ product, qty, lineTotal }) => (
-              <View key={product.id} testID={`cart-line-${product.id}`} style={styles.line}>
-                <Image source={product.image} style={styles.thumb} resizeMode="cover" />
-                <View style={styles.lineBody}>
-                  <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
-                    {product.name}
+          {/* 02 — Artículos */}
+          <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.sectionLabel}>
+            02 — ARTÍCULOS
+          </AppText>
+          {lines.map(({ product, qty, lineTotal }) => (
+            <View key={product.id} testID={`item-${product.id}`} style={styles.item}>
+              <Image source={product.image} style={styles.thumb} resizeMode="cover" />
+              <View style={styles.itemBody}>
+                <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
+                  {product.name}
+                </AppText>
+                {product.artisan ? (
+                  <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.artisan}>
+                    Artesano: {product.artisan}
                   </AppText>
-                  <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.unit}>
-                    {formatCop(product.priceCop)} c/u
+                ) : null}
+                <View style={styles.itemFooter}>
+                  <AppText variant="bodyMd" color="onSurfaceVariant">
+                    Cantidad: {qty}
                   </AppText>
-
-                  <View style={styles.lineFooter}>
-                    <View style={styles.qtyControls}>
-                      <Pressable
-                        style={styles.qtyButton}
-                        onPress={() => dispatch(decrementItem(product.id))}
-                        accessibilityLabel={`Disminuir ${product.name}`}
-                      >
-                        <Icon name="remove" size={18} color={theme.colors.onSurface} />
-                      </Pressable>
-                      <AppText variant="bodyLg" color="onSurface" style={styles.qtyValue}>
-                        {qty}
-                      </AppText>
-                      <Pressable
-                        style={styles.qtyButton}
-                        onPress={() => dispatch(addItem(product.id))}
-                        accessibilityLabel={`Aumentar ${product.name}`}
-                      >
-                        <Icon name="add" size={18} color={theme.colors.onSurface} />
-                      </Pressable>
-                    </View>
-                    <AppText variant="bodyLg" color="onSurface" style={styles.lineTotal}>
-                      {formatCop(lineTotal)}
-                    </AppText>
-                  </View>
+                  <AppText variant="bodyLg" color="primary" style={styles.itemPrice}>
+                    {formatCop(lineTotal)}
+                  </AppText>
                 </View>
-
-                <Pressable
-                  style={styles.remove}
-                  onPress={() => dispatch(removeItem(product.id))}
-                  hitSlop={8}
-                  accessibilityLabel={`Quitar ${product.name}`}
-                >
-                  <Icon name="close" size={18} color={theme.colors.onSurfaceVariant} />
-                </Pressable>
               </View>
-            ))}
-          </ScrollView>
+            </View>
+          ))}
 
-          {/* Pie fijo: total + pagar */}
-          <View style={[styles.footer, { paddingBottom: (insets.bottom || 12) + 8 }]}>
-            <View style={styles.totalRow}>
+          {/* Resumen del pedido */}
+          <View style={styles.summaryCard}>
+            <AppText variant="headlineMd" color="onSurface" style={styles.summaryTitle}>
+              Resumen del pedido
+            </AppText>
+            <SummaryRow label="Subtotal" value={formatCop(summary.subtotal)} />
+            <SummaryRow label="Envío (Estándar)" value={formatCop(summary.shipping)} />
+            <SummaryRow label="IVA (19%)" value={formatCop(summary.tax)} />
+            {summary.discount > 0 ? (
+              <SummaryRow
+                label={`Descuento (${DISCOUNT_CODE})`}
+                value={`- ${formatCop(summary.discount)}`}
+                highlight
+              />
+            ) : null}
+            <View style={styles.summaryDivider} />
+            <View style={styles.grandRow}>
               <AppText variant="labelCaps" color="onSurfaceVariant">
-                Total
+                GRAN TOTAL
               </AppText>
-              <AppText variant="headlineMd" color="onSurface" style={styles.total} testID="cart-total">
-                {formatCop(total)}
+              <AppText variant="headlineMd" color="onSurface" style={styles.grandTotal} testID="grand-total">
+                {formatCop(summary.total)}
               </AppText>
             </View>
+
             <Pressable
               testID="pay-button"
-              style={styles.payButton}
-              onPress={() =>
-                navigation.navigate('TransactionResult', { transactionId: 'demo' })
-              }
+              style={[styles.payButton, !shippingComplete && styles.payButtonDisabled]}
+              onPress={() => setPayOpen(true)}
+              disabled={!shippingComplete}
               accessibilityRole="button"
+              accessibilityState={{ disabled: !shippingComplete }}
             >
               <AppText variant="labelCaps" color="onPrimary">
                 Pagar con tarjeta
               </AppText>
-              <View style={styles.arrowCircle}>
-                <Icon name="arrow-forward" size={18} color={theme.colors.onSurface} />
-              </View>
+              <Icon name="chevron-right" size={22} color={theme.colors.onPrimary} />
             </Pressable>
+            <AppText
+              variant="labelCaps"
+              color={shippingComplete ? 'onSurfaceVariant' : 'error'}
+              style={styles.secure}
+            >
+              {shippingComplete
+                ? 'Pago cifrado SSL • Devoluciones en 30 días'
+                : 'Completa tus datos de envío para continuar'}
+            </AppText>
           </View>
-        </>
+        </ScrollView>
       )}
+
+      <PaymentDrawer
+        visible={payOpen}
+        amountCop={summary.total}
+        onClose={() => setPayOpen(false)}
+        onConfirm={handleConfirm}
+      />
     </View>
   );
 };
+
+/** Campo de envío con label en label-caps y línea inferior. */
+const ShippingField: React.FC<{
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'number-pad';
+  testID?: string;
+  style?: object;
+}> = ({ label, value, onChangeText, placeholder, keyboardType = 'default', testID, style }) => (
+  <View style={[styles.field, style]}>
+    <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.fieldLabel}>
+      {label}
+    </AppText>
+    <TextInput
+      testID={testID}
+      style={styles.input}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={theme.colors.surfaceDim}
+      keyboardType={keyboardType}
+    />
+  </View>
+);
+
+/** Línea del resumen (label a la izquierda, valor a la derecha). */
+const SummaryRow: React.FC<{ label: string; value: string; highlight?: boolean }> = ({
+  label,
+  value,
+  highlight,
+}) => (
+  <View style={styles.summaryRow}>
+    <AppText variant="bodyMd" color={highlight ? 'secondary' : 'onSurfaceVariant'}>
+      {label}
+    </AppText>
+    <AppText variant="bodyMd" color={highlight ? 'secondary' : 'onSurfaceVariant'}>
+      {value}
+    </AppText>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
@@ -184,74 +281,98 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.marginMobile,
     paddingBottom: theme.spacing.stackSm,
   },
-  topTitle: { fontSize: 20 },
-  topSpacer: { width: 26 },
+  topLeft: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.stackMd },
+  topTitle: { fontSize: 26 },
   scroll: {
     paddingHorizontal: theme.spacing.marginMobile,
-    paddingBottom: theme.spacing.stackMd,
+    paddingBottom: theme.spacing.stackLg,
   },
-  count: { marginBottom: theme.spacing.stackMd },
-  line: {
+  sectionLabel: { marginTop: theme.spacing.stackLg, marginBottom: theme.spacing.stackMd },
+  formCard: {
+    backgroundColor: theme.colors.surfaceContainerLowest,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.stackMd,
+    gap: theme.spacing.stackMd,
+  },
+  formRow: { flexDirection: 'row', gap: theme.spacing.stackMd },
+  formRowItem: { flex: 1 },
+  field: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.outlineVariant,
+    paddingVertical: 6,
+  },
+  fieldLabel: { fontSize: 10, marginBottom: 4 },
+  input: {
+    ...theme.typography.bodyMd,
+    color: theme.colors.onSurface,
+    padding: 0,
+  },
+  item: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.stackMd,
+    gap: theme.spacing.stackMd,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.stackSm,
+    marginBottom: theme.spacing.stackSm,
   },
   thumb: {
-    width: 84,
-    height: 84,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surfaceContainer,
+    width: 88,
+    height: 88,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceContainerHighest,
   },
-  lineBody: { flex: 1, marginLeft: theme.spacing.stackMd },
-  unit: { marginTop: 2 },
-  lineFooter: {
+  itemBody: { flex: 1, justifyContent: 'center' },
+  artisan: { marginTop: 2 },
+  itemFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: theme.spacing.stackSm,
   },
-  qtyControls: { flexDirection: 'row', alignItems: 'center' },
-  qtyButton: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+  itemPrice: { fontWeight: '700' },
+  summaryCard: {
+    marginTop: theme.spacing.stackLg,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.stackMd,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineVariant,
   },
-  qtyValue: { minWidth: 32, textAlign: 'center' },
-  lineTotal: { fontWeight: '600' },
-  remove: { paddingLeft: theme.spacing.stackSm },
-  footer: {
-    paddingHorizontal: theme.spacing.marginMobile,
-    paddingTop: theme.spacing.stackMd,
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.surfaceContainerHigh,
-  },
-  totalRow: {
+  summaryTitle: { fontSize: 22, marginBottom: theme.spacing.stackMd },
+  summaryRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.stackMd,
+    marginBottom: theme.spacing.stackSm,
   },
-  total: { fontSize: 22 },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: theme.colors.outlineVariant,
+    marginVertical: theme.spacing.stackSm,
+  },
+  grandRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  grandTotal: { fontSize: 28 },
   payButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.onSurface,
-    paddingVertical: 14,
-    paddingLeft: theme.spacing.stackLg,
-    paddingRight: theme.spacing.unit,
-    borderRadius: theme.radius.full,
-  },
-  arrowCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    backgroundColor: theme.colors.onSurface,
+    paddingVertical: 18,
+    borderRadius: theme.radius.full,
+    marginTop: theme.spacing.stackLg,
+  },
+  payButtonDisabled: { backgroundColor: theme.colors.surfaceContainerHighest },
+  secure: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: theme.spacing.stackMd,
+    letterSpacing: 1,
+    opacity: 0.6,
   },
   emptyState: {
     flex: 1,
@@ -260,10 +381,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.stackXl,
   },
   emptyTitle: { marginTop: theme.spacing.stackMd, textAlign: 'center' },
-  emptySub: {
-    marginTop: theme.spacing.stackSm,
-    textAlign: 'center',
-  },
+  emptySub: { marginTop: theme.spacing.stackSm, textAlign: 'center' },
   emptyButton: {
     marginTop: theme.spacing.stackLg,
     backgroundColor: theme.colors.primary,

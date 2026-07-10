@@ -4,10 +4,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CheckoutScreen } from '../src/screens/CheckoutScreen';
-import cartReducer, {
-  CartItem,
-  selectCartCount,
-} from '../src/store/slices/cartSlice';
+import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 
@@ -49,6 +46,20 @@ const renderScreen = (store: ReturnType<typeof makeStore>) => {
   return { tree, navigation };
 };
 
+const setField = (tree: ReactTestRenderer.ReactTestRenderer, testID: string, value: string) => {
+  const input = tree.root.findByProps({ testID });
+  ReactTestRenderer.act(() => input.props.onChangeText(value));
+};
+
+/** Completa los datos de envío (requisito para poder pagar). */
+const fillShipping = (tree: ReactTestRenderer.ReactTestRenderer) => {
+  setField(tree, 'ship-firstName', 'Kenji');
+  setField(tree, 'ship-lastName', 'Sato');
+  setField(tree, 'ship-address', 'Calle 10 # 5-51');
+  setField(tree, 'ship-city', 'Bogotá');
+  setField(tree, 'ship-postal', '110111');
+};
+
 describe('CheckoutScreen', () => {
   it('muestra el estado vacío cuando no hay ítems', () => {
     const { tree } = renderScreen(makeStore());
@@ -56,51 +67,91 @@ describe('CheckoutScreen', () => {
     expect(text).toContain('Tu carrito está vacío');
   });
 
-  it('lista los ítems y calcula el total', () => {
+  it('lista artículos con artesano y cantidad', () => {
+    const store = makeStore([{ productId: 'tea-set', qty: 2 }]);
+    const { tree } = renderScreen(store);
+    // La línea del artículo existe con su testID.
+    expect(tree.root.findAllByProps({ testID: 'item-tea-set' }).length).toBeGreaterThan(0);
+    const all = collectText(tree.toJSON()).join(' ').replace(/\s+/g, ' ');
+    expect(all).toContain('Juego de Té de Basalto');
+    expect(all).toContain('Artesano: Kenzo Tanaka');
+    expect(all).toContain('Cantidad: 2');
+  });
+
+  it('calcula el gran total (subtotal + envío + IVA − descuento)', () => {
+    // 320.000 x 2 + 245.000 = 885.000 subtotal
+    // + 15.000 envío + 168.150 IVA − 88.500 descuento = 979.650
     const store = makeStore([
-      { productId: 'tea-set', qty: 2 }, // 320.000 x 2 = 640.000
-      { productId: 'writing-set', qty: 1 }, // 245.000
+      { productId: 'tea-set', qty: 2 },
+      { productId: 'writing-set', qty: 1 },
     ]);
     const { tree } = renderScreen(store);
-    const text = collectText(tree.toJSON()).join(' ');
-    expect(text).toContain('Juego de Té de Basalto');
-    expect(text).toContain('Set de Escritura en Ebonita');
-    // Total = 640.000 + 245.000 = 885.000
-    const total = tree.root.findByProps({ testID: 'cart-total' });
-    expect(collectText(total.props.children).join('')).toContain('$885.000');
+    const total = tree.root.findByProps({ testID: 'grand-total' });
+    expect(collectText(total.props.children).join('')).toContain('$979.650');
   });
 
-  it('aumenta y disminuye la cantidad de una línea', () => {
+  it('no habilita el pago sin los datos de envío', () => {
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree } = renderScreen(store);
-    const inc = tree.root.findByProps({
-      accessibilityLabel: 'Aumentar Juego de Té de Basalto',
-    });
-    ReactTestRenderer.act(() => inc.props.onPress());
-    expect(selectCartCount(store.getState().cart.items)).toBe(2);
-    const dec = tree.root.findByProps({
-      accessibilityLabel: 'Disminuir Juego de Té de Basalto',
-    });
-    ReactTestRenderer.act(() => dec.props.onPress());
-    expect(selectCartCount(store.getState().cart.items)).toBe(1);
+    const pay = tree.root.findByProps({ testID: 'pay-button' });
+    expect(pay.props.accessibilityState).toEqual({ disabled: true });
+    // Tras completar el envío, se habilita.
+    fillShipping(tree);
+    const payAfter = tree.root.findByProps({ testID: 'pay-button' });
+    expect(payAfter.props.accessibilityState).toEqual({ disabled: false });
   });
 
-  it('quita una línea del carrito', () => {
+  it('abre el drawer de pago con los datos de envío completos', () => {
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree } = renderScreen(store);
-    const remove = tree.root.findByProps({ accessibilityLabel: 'Quitar Juego de Té de Basalto' });
-    ReactTestRenderer.act(() => remove.props.onPress());
-    expect(store.getState().cart.items).toHaveLength(0);
-  });
-
-  it('navega al resultado al pagar', () => {
-    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
-    const { tree, navigation } = renderScreen(store);
+    fillShipping(tree);
+    // Antes de abrir no existe el formulario de tarjeta.
+    expect(tree.root.findAllByProps({ testID: 'input-number' })).toHaveLength(0);
     const pay = tree.root.findByProps({ testID: 'pay-button' });
     ReactTestRenderer.act(() => pay.props.onPress());
+    expect(tree.root.findAllByProps({ testID: 'input-number' }).length).toBeGreaterThan(0);
+  });
+
+  it('confirma el pago: inicia la transacción y navega al resultado', () => {
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
+    const { tree, navigation } = renderScreen(store);
+
+    fillShipping(tree);
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
+    );
+
+    setField(tree, 'input-number', '4111111111111111');
+    setField(tree, 'input-holder', 'Kenji Sato');
+    setField(tree, 'input-expiry', '1226');
+    setField(tree, 'input-cvv', '123');
+
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
+    );
+
+    const tx = store.getState().transaction;
+    expect(tx.status).toBe('pending');
+    expect(tx.card).toEqual({ last4: '1111', brand: 'Visa', holder: 'Kenji Sato' });
+    // El monto de la transacción es el gran total (con envío + IVA − descuento).
+    expect(tx.amountCop).toBeGreaterThan(0);
     expect(navigation.navigate).toHaveBeenCalledWith(
       'TransactionResult',
-      expect.objectContaining({ transactionId: expect.any(String) }),
+      expect.objectContaining({ transactionId: expect.stringContaining('YUGEN-1111') }),
     );
+  });
+
+  it('no confirma con datos de tarjeta incompletos', () => {
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
+    const { tree, navigation } = renderScreen(store);
+    fillShipping(tree);
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
+    );
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
+    );
+    expect(store.getState().transaction.status).toBe('idle');
+    expect(navigation.navigate).not.toHaveBeenCalled();
   });
 });
