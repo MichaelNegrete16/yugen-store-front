@@ -6,6 +6,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProductDetailScreen } from '../screens/ProductDetailScreen';
 import { CartScreen } from '../screens/CartScreen';
 import { CheckoutScreen } from '../screens/CheckoutScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { TransactionResultScreen } from '../screens/TransactionResultScreen';
 import { theme } from '../theme';
 
@@ -32,6 +33,7 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="Cart" component={CartScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen
         name="TransactionResult"
         component={TransactionResultScreen}

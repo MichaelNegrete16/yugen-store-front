@@ -14,6 +14,7 @@ export type RootStackParamList = {
   ProductDetail: { productId: string };
   Cart: undefined;
   Checkout: undefined;
+  Profile: undefined;
   TransactionResult: { transactionId: string };
 };
 
