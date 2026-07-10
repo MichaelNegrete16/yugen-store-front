@@ -1,0 +1,247 @@
+import React, { useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { AppText } from './AppText';
+import { CreditCard } from './CreditCard';
+import { theme } from '../theme';
+import { formatCop } from '../utils/format';
+import {
+  formatCardNumber,
+  formatExpiry,
+  formatCvv,
+  detectBrand,
+  last4,
+  isCardComplete,
+} from '../utils/card';
+import type { CardInfo } from '../store/slices/transactionSlice';
+
+export interface PaymentDrawerProps {
+  visible: boolean;
+  amountCop: number;
+  onClose: () => void;
+  /** Se llama al confirmar con los datos seguros de la tarjeta (sin el número completo). */
+  onConfirm: (card: CardInfo) => void;
+}
+
+/**
+ * Drawer de pago (pasos 5 y 6 del flujo): captura los datos de la tarjeta
+ * sobre una tarjeta interactiva que se voltea al enfocar el CVV.
+ * El pago es MOCK; el empalme real con la pasarela sandbox es la última fase.
+ */
+export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
+  visible,
+  amountCop,
+  onClose,
+  onConfirm,
+}) => {
+  const insets = useSafeAreaInsets();
+  const [number, setNumber] = useState('');
+  const [holder, setHolder] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [flipped, setFlipped] = useState(false);
+
+  const complete = isCardComplete(number, holder, expiry, cvv);
+  const brand = number ? detectBrand(number) : undefined;
+
+  const handleConfirm = () => {
+    if (!complete) return;
+    onConfirm({ last4: last4(number), brand: detectBrand(number), holder: holder.trim() });
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar pago" />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.panelWrap}
+        >
+          <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
+            <View style={styles.header}>
+              <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
+                <Icon name="close" size={26} color={theme.colors.onSurface} />
+              </Pressable>
+              <AppText variant="labelCaps" color="primary">
+                PAGO SEGURO
+              </AppText>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scroll}
+              keyboardShouldPersistTaps="handled"
+            >
+              <CreditCard
+                number={number}
+                holder={holder}
+                expiry={expiry}
+                cvv={cvv}
+                brand={brand}
+                flipped={flipped}
+              />
+
+              <View style={styles.form}>
+                <Field label="NÚMERO DE TARJETA">
+                  <TextInput
+                    testID="input-number"
+                    style={styles.input}
+                    value={number}
+                    onChangeText={(t) => setNumber(formatCardNumber(t))}
+                    keyboardType="number-pad"
+                    placeholder="0000 0000 0000 0000"
+                    placeholderTextColor={theme.colors.surfaceDim}
+                    maxLength={19}
+                  />
+                </Field>
+
+                <Field label="TITULAR DE LA TARJETA">
+                  <TextInput
+                    testID="input-holder"
+                    style={styles.input}
+                    value={holder}
+                    onChangeText={setHolder}
+                    autoCapitalize="characters"
+                    placeholder="NOMBRE COMPLETO"
+                    placeholderTextColor={theme.colors.surfaceDim}
+                  />
+                </Field>
+
+                <View style={styles.row}>
+                  <Field label="EXPIRACIÓN" style={styles.rowItem}>
+                    <TextInput
+                      testID="input-expiry"
+                      style={styles.input}
+                      value={expiry}
+                      onChangeText={(t) => setExpiry(formatExpiry(t))}
+                      keyboardType="number-pad"
+                      placeholder="MM / AA"
+                      placeholderTextColor={theme.colors.surfaceDim}
+                      maxLength={7}
+                    />
+                  </Field>
+                  <Field label="CVV" style={styles.rowItem}>
+                    <TextInput
+                      testID="input-cvv"
+                      style={styles.input}
+                      value={cvv}
+                      onChangeText={(t) => setCvv(formatCvv(t))}
+                      onFocus={() => setFlipped(true)}
+                      onBlur={() => setFlipped(false)}
+                      keyboardType="number-pad"
+                      placeholder="•••"
+                      placeholderTextColor={theme.colors.surfaceDim}
+                      maxLength={3}
+                    />
+                  </Field>
+                </View>
+              </View>
+            </ScrollView>
+
+            <Pressable
+              testID="confirm-payment"
+              style={[styles.confirm, !complete && styles.confirmDisabled]}
+              onPress={handleConfirm}
+              disabled={!complete}
+              accessibilityRole="button"
+            >
+              <AppText variant="labelCaps" color="onPrimary">
+                Confirmar pago — {formatCop(amountCop)}
+              </AppText>
+            </Pressable>
+            <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
+              Al confirmar aceptas nuestros términos de comercio artesanal.
+            </AppText>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
+
+/** Campo con label en label-caps y línea inferior (estilo del diseño). */
+const Field: React.FC<{
+  label: string;
+  style?: object;
+  children: React.ReactNode;
+}> = ({ label, style, children }) => (
+  <View style={[styles.field, style]}>
+    <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.fieldLabel}>
+      {label}
+    </AppText>
+    {children}
+  </View>
+);
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  panelWrap: { justifyContent: 'flex-end' },
+  panel: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.radius.lg,
+    borderTopRightRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.marginMobile,
+    maxHeight: '92%',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.stackLg,
+  },
+  scroll: { paddingBottom: theme.spacing.stackMd },
+  form: { marginTop: theme.spacing.stackLg, gap: theme.spacing.stackMd },
+  field: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.outlineVariant,
+    paddingVertical: 8,
+  },
+  fieldLabel: { fontSize: 10, marginBottom: 4 },
+  input: {
+    ...theme.typography.bodyMd,
+    color: theme.colors.onSurface,
+    padding: 0,
+  },
+  row: { flexDirection: 'row', gap: theme.spacing.stackMd },
+  rowItem: { flex: 1 },
+  confirm: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 18,
+    borderRadius: theme.radius.full,
+    alignItems: 'center',
+    marginTop: theme.spacing.stackMd,
+  },
+  confirmDisabled: { backgroundColor: theme.colors.surfaceContainerHighest },
+  terms: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: theme.spacing.stackSm,
+    letterSpacing: 0,
+    opacity: 0.6,
+  },
+});
+
+export default PaymentDrawer;
