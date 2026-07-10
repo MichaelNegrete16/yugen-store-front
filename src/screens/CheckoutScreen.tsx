@@ -17,6 +17,8 @@ import { formatCop } from '../utils/format';
 import { computeOrderSummary, DISCOUNT_CODE } from '../utils/pricing';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startTransaction, CardInfo } from '../store/slices/transactionSlice';
+import { addOrder } from '../store/slices/ordersSlice';
+import { clearCart } from '../store/slices/cartSlice';
 import type { RootStackScreenProps } from '../navigation/types';
 
 /**
@@ -73,14 +75,31 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
   const handleConfirm = (card: CardInfo) => {
     const reference = `YUGEN-${card.last4}-${Date.now()}`;
+    const productIds = lines.map((l) => l.product.id);
+    const itemCount = lines.reduce((sum, l) => sum + l.qty, 0);
     dispatch(
       startTransaction({
         reference,
         amountCop: summary.total,
-        productIds: lines.map((l) => l.product.id),
+        productIds,
         card,
       }),
     );
+    // Pago MOCK: se registra la compra como aprobada. El empalme real con la
+    // pasarela (última fase) reemplazará este estado por el que devuelva el backend.
+    dispatch(
+      addOrder({
+        id: reference,
+        createdAt: new Date().toISOString(),
+        amountCop: summary.total,
+        itemCount,
+        productIds,
+        cardLast4: card.last4,
+        cardBrand: card.brand,
+        status: 'approved',
+      }),
+    );
+    dispatch(clearCart());
     setPayOpen(false);
     navigation.navigate('TransactionResult', { transactionId: reference });
   };

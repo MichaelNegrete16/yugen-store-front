@@ -14,6 +14,7 @@ import { encryptTransform } from 'redux-persist-transform-encrypt';
 import cartReducer from './slices/cartSlice';
 import transactionReducer from './slices/transactionSlice';
 import productsReducer from './slices/productsSlice';
+import ordersReducer from './slices/ordersSlice';
 
 /**
  * Clave de cifrado para los datos persistidos sensibles (transacción).
@@ -30,10 +31,15 @@ const encrypt = encryptTransform({
   },
 });
 
-// El carrito se persiste normal; la transacción se persiste CIFRADA.
+// El carrito se persiste normal; la transacción y los pedidos, CIFRADOS.
 const cartPersistConfig = { key: 'cart', storage: AsyncStorage };
 const transactionPersistConfig = {
   key: 'transaction',
+  storage: AsyncStorage,
+  transforms: [encrypt],
+};
+const ordersPersistConfig = {
+  key: 'orders',
   storage: AsyncStorage,
   transforms: [encrypt],
 };
@@ -41,6 +47,7 @@ const transactionPersistConfig = {
 const rootReducer = combineReducers({
   cart: persistReducer(cartPersistConfig, cartReducer),
   transaction: persistReducer(transactionPersistConfig, transactionReducer),
+  orders: persistReducer(ordersPersistConfig, ordersReducer),
   products: productsReducer,
 });
 
