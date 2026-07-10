@@ -1,5 +1,6 @@
 import reducer, {
   addItem,
+  addToCart,
   decrementItem,
   removeItem,
   clearCart,
@@ -19,6 +20,18 @@ describe('cartSlice', () => {
     let state = reducer(empty, addItem('tea-set'));
     state = reducer(state, addItem('tea-set'));
     expect(state.items).toEqual([{ productId: 'tea-set', qty: 2 }]);
+  });
+
+  it('addToCart agrega con cantidad y acumula si existe', () => {
+    let state = reducer(empty, addToCart({ productId: 'tea-set', qty: 3 }));
+    expect(state.items).toEqual([{ productId: 'tea-set', qty: 3 }]);
+    state = reducer(state, addToCart({ productId: 'tea-set', qty: 2 }));
+    expect(state.items).toEqual([{ productId: 'tea-set', qty: 5 }]);
+  });
+
+  it('addToCart ignora cantidades <= 0', () => {
+    const state = reducer(empty, addToCart({ productId: 'tea-set', qty: 0 }));
+    expect(state.items).toEqual([]);
   });
 
   it('decrementa y elimina el item al llegar a 0', () => {
