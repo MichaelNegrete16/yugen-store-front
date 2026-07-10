@@ -9,6 +9,7 @@ export interface CategoryChipProps {
   icon: string;
   active?: boolean;
   onPress?: () => void;
+  testID?: string;
 }
 
 /** Chip de categoría (icono en cuadro redondeado + etiqueta). */
@@ -17,9 +18,16 @@ export const CategoryChip: React.FC<CategoryChipProps> = ({
   icon,
   active = false,
   onPress,
+  testID,
 }) => {
   return (
-    <Pressable style={styles.container} onPress={onPress} accessibilityRole="button">
+    <Pressable
+      testID={testID}
+      style={styles.container}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
       <View style={[styles.iconBox, active && styles.iconBoxActive]}>
         <Icon
           name={icon}
