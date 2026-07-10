@@ -4,13 +4,13 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  Image,
   ImageBackground,
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
+import { Avatar } from '../components/Avatar';
 import { CategoryChip } from '../components/CategoryChip';
 import { ProductCard } from '../components/ProductCard';
 import { CATEGORIES } from '../data/products';
@@ -19,7 +19,6 @@ import { addItem, selectCartCount } from '../store/slices/cartSlice';
 import { theme } from '../theme';
 import type { RootStackScreenProps } from '../navigation/types';
 
-const AVATAR = require('../../assets/images/avatar.jpg');
 const HERO = require('../../assets/images/hero-sakura.jpg');
 
 const NAV_ITEMS = ['home', 'local-cafe', 'search', 'shopping-cart', 'person'];
@@ -53,7 +52,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
               Bienvenido de nuevo
             </AppText>
           </View>
-          <Image source={AVATAR} style={styles.avatar} />
+          <Avatar />
         </View>
 
         {/* Buscador */}
@@ -141,7 +140,7 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
             disabled={name !== 'shopping-cart'}
             onPress={
               name === 'shopping-cart'
-                ? () => navigation.navigate('Checkout')
+                ? () => navigation.navigate('Cart')
                 : undefined
             }
             accessibilityRole={name === 'shopping-cart' ? 'button' : undefined}
@@ -178,12 +177,6 @@ const styles = StyleSheet.create({
   },
   greeting: { flex: 1, marginLeft: theme.spacing.stackMd },
   greetingName: { fontSize: 20, marginTop: 2 },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surfaceContainer,
-  },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,7 +206,11 @@ const styles = StyleSheet.create({
   },
   heroImage: { borderRadius: theme.radius.lg },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(27,27,28,0.28)',
   },
   heroContent: { padding: theme.spacing.stackMd },
