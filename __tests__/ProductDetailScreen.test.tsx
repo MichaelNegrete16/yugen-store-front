@@ -3,6 +3,11 @@ import ReactTestRenderer from 'react-test-renderer';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+jest.mock('../src/api/apiSlice', () => ({
+  useGetProductQuery: jest.fn(() => ({ data: undefined })),
+}));
+
 import { ProductDetailScreen } from '../src/screens/ProductDetailScreen';
 import cartReducer, { selectCartCount } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';

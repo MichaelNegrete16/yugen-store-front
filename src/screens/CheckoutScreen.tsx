@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,9 +19,12 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startTransaction, setTransactionResult } from '../store/slices/transactionSlice';
 import { addOrder } from '../store/slices/ordersSlice';
 import { clearCart } from '../store/slices/cartSlice';
+import { setCustomerEmail } from '../store/slices/customerSlice';
 import {
   useCreateTransactionMutation,
   useLazyGetTransactionQuery,
+  useQuoteMutation,
+  PriceBreakdown,
 } from '../api/apiSlice';
 import { showToast } from '../utils/toast';
 import type { ConfirmedCard } from '../components/PaymentDrawer';
@@ -63,12 +66,34 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
     () => lines.reduce((sum, l) => sum + l.lineTotal, 0),
     [lines],
   );
-  const summary = useMemo(
+  const localSummary = useMemo(
     () => computeOrderSummary(subtotal, DISCOUNT_CODE),
     [subtotal],
   );
 
   const empty = lines.length === 0;
+
+  const [fetchQuote] = useQuoteMutation();
+  const [remoteSummary, setRemoteSummary] = useState<PriceBreakdown | null>(null);
+  useEffect(() => {
+    if (empty) {
+      setRemoteSummary(null);
+      return;
+    }
+    let cancelled = false;
+    fetchQuote({
+      items: cartItems.map((i) => ({ productId: i.productId, qty: i.qty })),
+      discountCode: DISCOUNT_CODE,
+    })
+      .unwrap()
+      .then((b) => !cancelled && setRemoteSummary(b))
+      .catch(() => !cancelled && setRemoteSummary(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems, empty, fetchQuote]);
+
+  const summary = remoteSummary ?? localSummary;
 
   const shippingComplete =
     /\S+@\S+\.\S+/.test(email.trim()) &&
@@ -128,6 +153,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       }
 
       const amount = tx.amountCop || tx.breakdown?.total || summary.total;
+      dispatch(setCustomerEmail(email.trim()));
       dispatch(
         startTransaction({
           reference: tx.reference,

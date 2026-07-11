@@ -7,6 +7,7 @@ import { Avatar } from '../components/Avatar';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import { useAppSelector } from '../store/hooks';
+import { useGetOrdersQuery } from '../api/apiSlice';
 import type { Order, OrderStatus } from '../store/slices/ordersSlice';
 import type { ColorToken } from '../theme';
 import type { RootStackScreenProps } from '../navigation/types';
@@ -30,7 +31,11 @@ export const ProfileScreen: React.FC<RootStackScreenProps<'Profile'>> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
-  const orders = useAppSelector((s) => s.orders.items);
+  const localOrders = useAppSelector((s) => s.orders.items);
+  const email = useAppSelector((s) => s.customer.email);
+  const { data: remoteOrders } = useGetOrdersQuery(email, { skip: !email });
+  const orders =
+    remoteOrders && remoteOrders.length > 0 ? remoteOrders : localOrders;
   const empty = orders.length === 0;
 
   return (

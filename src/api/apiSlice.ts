@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from './config';
 import type { Product } from '../data/products';
+import type { Order } from '../store/slices/ordersSlice';
 
 /** Ítem de pedido (producto + cantidad) usado en quote y transacción. */
 export interface OrderItemInput {
@@ -61,16 +62,6 @@ export interface TransactionResponse {
   createdAt: string;
 }
 
-export interface ApiOrder {
-  reference: string;
-  status: TransactionStatus;
-  amountCop: number;
-  createdAt: string;
-  items?: OrderItemInput[];
-  cardBrand?: string;
-  cardLast4?: string;
-}
-
 /**
  * Servicio API (RTK Query). Genera hooks con loading/error/caché.
  * El polling del estado del pago usa `pollingInterval` (ver Result screen).
@@ -100,7 +91,7 @@ export const api = createApi({
     getTransaction: builder.query<TransactionResponse, string>({
       query: (reference) => `/transactions/${reference}`,
     }),
-    getOrders: builder.query<ApiOrder[], string>({
+    getOrders: builder.query<Order[], string>({
       query: (email) => `/orders?email=${encodeURIComponent(email)}`,
       providesTags: ['Orders'],
     }),
