@@ -86,26 +86,25 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         if (!loading) onClose();
       }}
     >
-      <View style={styles.overlay}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => {
-            if (!loading) onClose();
-          }}
-          accessibilityLabel="Cerrar pago"
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.panelWrap}
-        >
-          <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
-            {loading ? (
-              <BrandLoader
-                title="Procesando tu pago"
-                subtitle="Estamos confirmando con tu banco. Por favor no cierres esta ventana."
-              />
-            ) : (
-              <>
+      {loading ? (
+        <View style={styles.fullLoader}>
+          <BrandLoader
+            title="Procesando tu pago"
+            subtitle="Estamos confirmando con tu banco. Por favor no cierres esta ventana."
+          />
+        </View>
+      ) : (
+        <View style={styles.overlay}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={onClose}
+            accessibilityLabel="Cerrar pago"
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.panelWrap}
+          >
+            <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
                 <View style={styles.header}>
                   <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
                     <Icon name="close" size={26} color={theme.colors.onSurface} />
@@ -200,11 +199,10 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
                 Al confirmar aceptas nuestros términos de comercio artesanal.
               </AppText>
                 </ScrollView>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      )}
     </Modal>
   );
 };
@@ -225,6 +223,12 @@ const Field: React.FC<{
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
+  fullLoader: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   backdrop: {
     position: 'absolute',
     top: 0,
