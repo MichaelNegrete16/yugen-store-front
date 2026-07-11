@@ -97,6 +97,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           country: 'Colombia',
         },
         items,
+        discountCode: DISCOUNT_CODE,
         card: {
           number: card.number,
           cardHolder: card.cardHolder,
