@@ -27,7 +27,6 @@ import {
 
 /** Datos completos de la tarjeta al confirmar (para tokenizar en el backend). */
 export interface ConfirmedCard {
-  /** Número sin espacios. */
   number: string;
   cardHolder: string;
   expMonth: string;
@@ -40,7 +39,6 @@ export interface ConfirmedCard {
 export interface PaymentDrawerProps {
   visible: boolean;
   amountCop: number;
-  /** Muestra estado de carga mientras se procesa el pago. */
   loading?: boolean;
   onClose: () => void;
   onConfirm: (card: ConfirmedCard) => void;
@@ -80,7 +78,6 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
       onRequestClose={() => {
         if (!loading) onClose();
@@ -94,29 +91,27 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
           />
         </View>
       ) : (
-        <View style={styles.overlay}>
-          <Pressable
-            style={styles.backdrop}
-            onPress={onClose}
-            accessibilityLabel="Cerrar pago"
-          />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.panelWrap}
-          >
-            <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
-                <View style={styles.header}>
-                  <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
-                    <Icon name="close" size={26} color={theme.colors.onSurface} />
-                  </Pressable>
-                  <AppText variant="labelCaps" color="primary">
-                    PAGO SEGURO
-                  </AppText>
-                </View>
+        <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.header}>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
+              <Icon name="arrow-back" size={26} color={theme.colors.onSurface} />
+            </Pressable>
+            <AppText variant="labelCaps" color="primary">
+              PAGO SEGURO
+            </AppText>
+            <View style={styles.headerSpacer} />
+          </View>
 
-                <ScrollView
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scroll}
+              contentContainerStyle={[
+                styles.scroll,
+                { paddingBottom: (insets.bottom || 12) + theme.spacing.stackXl },
+              ]}
               keyboardShouldPersistTaps="handled"
             >
               <CreditCard
@@ -198,8 +193,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
               <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
                 Al confirmar aceptas nuestros términos de comercio artesanal.
               </AppText>
-                </ScrollView>
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </View>
       )}
@@ -207,7 +201,6 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   );
 };
 
-/** Campo con label en label-caps y línea inferior (estilo del diseño). */
 const Field: React.FC<{
   label: string;
   style?: object;
@@ -222,36 +215,26 @@ const Field: React.FC<{
 );
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
+  flex: { flex: 1 },
+  screen: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.marginMobile,
+  },
   fullLoader: {
     flex: 1,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  panelWrap: { justifyContent: 'flex-end' },
-  panel: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radius.lg,
-    borderTopRightRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.marginMobile,
-    maxHeight: '92%',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.stackLg,
+    marginBottom: theme.spacing.stackMd,
   },
-  scroll: { paddingBottom: theme.spacing.stackLg },
+  headerSpacer: { width: 26 },
+  scroll: { paddingTop: theme.spacing.stackSm },
   form: { marginTop: theme.spacing.stackLg, gap: theme.spacing.stackMd },
   field: {
     borderBottomWidth: 1,
@@ -271,7 +254,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: theme.radius.full,
     alignItems: 'center',
-    marginTop: theme.spacing.stackMd,
+    marginTop: theme.spacing.stackLg,
   },
   confirmDisabled: { backgroundColor: theme.colors.surfaceContainerHighest },
   terms: {

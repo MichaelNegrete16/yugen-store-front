@@ -8,6 +8,7 @@ jest.mock('../src/api/apiSlice', () => ({
   useCreateTransactionMutation: jest.fn(),
   useLazyGetTransactionQuery: jest.fn(),
   useQuoteMutation: jest.fn(),
+  api: { util: { invalidateTags: jest.fn(() => ({ type: 'api/invalidateTags' })) } },
 }));
 jest.mock('../src/utils/toast', () => ({ showToast: jest.fn() }));
 

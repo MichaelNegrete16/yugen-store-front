@@ -21,6 +21,7 @@ import { addOrder } from '../store/slices/ordersSlice';
 import { clearCart } from '../store/slices/cartSlice';
 import { setCustomerEmail } from '../store/slices/customerSlice';
 import {
+  api,
   useCreateTransactionMutation,
   useLazyGetTransactionQuery,
   useQuoteMutation,
@@ -183,6 +184,8 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
         }),
       );
       dispatch(clearCart());
+      // Refrescar el historial del backend YA con el estado final.
+      dispatch(api.util.invalidateTags(['Orders']));
       setPayOpen(false);
       navigation.navigate('TransactionResult', { transactionId: tx.reference });
     } finally {

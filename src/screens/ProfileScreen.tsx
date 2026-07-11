@@ -50,7 +50,10 @@ export const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({
     isFetching,
     isError,
     refetch,
-  } = useGetOrdersQuery(storedEmail, { skip: !storedEmail });
+  } = useGetOrdersQuery(storedEmail, {
+    skip: !storedEmail,
+    refetchOnMountOrArgChange: true,
+  });
 
   const TopBar = (
     <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
