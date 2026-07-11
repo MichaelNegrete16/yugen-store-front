@@ -15,6 +15,7 @@ import cartReducer from './slices/cartSlice';
 import transactionReducer from './slices/transactionSlice';
 import productsReducer from './slices/productsSlice';
 import ordersReducer from './slices/ordersSlice';
+import { api } from '../api/apiSlice';
 
 /**
  * Clave de cifrado para los datos persistidos sensibles (transacción).
@@ -49,6 +50,8 @@ const rootReducer = combineReducers({
   transaction: persistReducer(transactionPersistConfig, transactionReducer),
   orders: persistReducer(ordersPersistConfig, ordersReducer),
   products: productsReducer,
+  // Caché de RTK Query (no se persiste).
+  [api.reducerPath]: api.reducer,
 });
 
 export const store = configureStore({
@@ -59,7 +62,7 @@ export const store = configureStore({
         // Acciones internas de redux-persist que no son serializables.
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(api.middleware),
 });
 
 export const persistor = persistStore(store);

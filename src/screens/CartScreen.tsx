@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { RemoteImage } from '../components/RemoteImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
@@ -91,7 +92,7 @@ export const CartScreen: React.FC<RootStackScreenProps<'Cart'>> = ({
 
             {lines.map(({ product, qty, lineTotal }) => (
               <View key={product.id} testID={`cart-line-${product.id}`} style={styles.line}>
-                <Image source={product.image} style={styles.thumb} resizeMode="cover" />
+                <RemoteImage uri={product.image} style={styles.thumb} showLabel={false} />
                 <View style={styles.lineBody}>
                   <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
                     {product.name}
