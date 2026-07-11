@@ -86,7 +86,9 @@ export const api = createApi({
       CreateTransactionRequest
     >({
       query: (body) => ({ url: '/transactions', method: 'POST', body }),
-      invalidatesTags: ['Products', 'Orders'],
+      // Solo stock aquí; "Orders" se invalida tras finalizar el polling
+      // (si no, cachearía el estado pending recién creado).
+      invalidatesTags: ['Products'],
     }),
     getTransaction: builder.query<TransactionResponse, string>({
       query: (reference) => `/transactions/${reference}`,
