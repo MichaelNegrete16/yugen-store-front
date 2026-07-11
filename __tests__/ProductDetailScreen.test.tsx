@@ -74,6 +74,8 @@ describe('ProductDetailScreen', () => {
     const tree = renderScreen(makeStore());
     const cart = tree.root.findByProps({ accessibilityLabel: 'Ver carrito' });
     ReactTestRenderer.act(() => cart.props.onPress());
-    expect((tree as any).navigation.navigate).toHaveBeenCalledWith('Cart');
+    expect((tree as any).navigation.navigate).toHaveBeenCalledWith('Main', {
+      screen: 'Cart',
+    });
   });
 });

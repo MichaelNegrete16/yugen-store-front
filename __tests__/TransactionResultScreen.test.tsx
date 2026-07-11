@@ -81,7 +81,7 @@ describe('TransactionResultScreen', () => {
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'see-orders' }).props.onPress(),
     );
-    expect(navigation.navigate).toHaveBeenCalledWith('Profile');
+    expect(navigation.navigate).toHaveBeenCalledWith('Main', { screen: 'Profile' });
   });
 
   it('no rompe si no encuentra el pedido', () => {

@@ -57,29 +57,6 @@ describe('HomeScreen', () => {
     expect(menus).toHaveLength(0);
   });
 
-  it('el nav inferior tiene exactamente Home, Buscar, Carrito y Perfil (sin pocillo)', () => {
-    const { tree } = renderScreen();
-    const navKeys = [
-      ...new Set(
-        tree.root
-          .findAll(
-            (n) =>
-              typeof n.props?.testID === 'string' && n.props.testID.startsWith('nav-'),
-          )
-          .map((n) => n.props.testID),
-      ),
-    ];
-    expect(navKeys).toEqual(['nav-home', 'nav-search', 'nav-cart', 'nav-profile']);
-  });
-
-  it('el nav inferior lleva a Carrito y Perfil', () => {
-    const { tree, navigation } = renderScreen();
-    press(tree, 'nav-cart');
-    expect(navigation.navigate).toHaveBeenCalledWith('Cart');
-    press(tree, 'nav-profile');
-    expect(navigation.navigate).toHaveBeenCalledWith('Profile');
-  });
-
   it('muestra todos los productos por defecto (chip Todos)', () => {
     const { tree } = renderScreen();
     const text = collectText(tree.toJSON()).join(' ');
