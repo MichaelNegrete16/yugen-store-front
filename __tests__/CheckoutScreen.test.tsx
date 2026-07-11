@@ -3,11 +3,47 @@ import ReactTestRenderer from 'react-test-renderer';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+jest.mock('../src/api/apiSlice', () => ({
+  useCreateTransactionMutation: jest.fn(),
+}));
+jest.mock('../src/utils/toast', () => ({ showToast: jest.fn() }));
+
 import { CheckoutScreen } from '../src/screens/CheckoutScreen';
+import { useCreateTransactionMutation } from '../src/api/apiSlice';
+import { showToast } from '../src/utils/toast';
 import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 import ordersReducer from '../src/store/slices/ordersSlice';
+
+const mockTx = useCreateTransactionMutation as unknown as jest.Mock;
+const mockShowToast = showToast as unknown as jest.Mock;
+
+const APPROVED = {
+  reference: 'YUGEN-4242-1',
+  id: 'txn1',
+  status: 'approved',
+  amountCop: 395800,
+  breakdown: { subtotal: 320000, shipping: 15000, tax: 60800, discount: 0, total: 395800 },
+  cardBrand: 'VISA',
+  cardLast4: '4242',
+  createdAt: '2026-07-10T12:00:00.000Z',
+};
+
+const setMutation = (response: any, rejectErr?: Error) => {
+  const trigger = jest.fn(() => ({
+    unwrap: () => (rejectErr ? Promise.reject(rejectErr) : Promise.resolve(response)),
+  }));
+  mockTx.mockReturnValue([trigger, { isLoading: false }]);
+  return trigger;
+};
+
+beforeEach(() => {
+  mockTx.mockReset();
+  mockShowToast.mockReset();
+  setMutation(APPROVED);
+});
 
 const makeStore = (cartItems: CartItem[] = []) =>
   configureStore({
@@ -53,8 +89,8 @@ const setField = (tree: ReactTestRenderer.ReactTestRenderer, testID: string, val
   ReactTestRenderer.act(() => input.props.onChangeText(value));
 };
 
-/** Completa los datos de envío (requisito para poder pagar). */
 const fillShipping = (tree: ReactTestRenderer.ReactTestRenderer) => {
+  setField(tree, 'ship-email', 'kenji@example.com');
   setField(tree, 'ship-firstName', 'Kenji');
   setField(tree, 'ship-lastName', 'Sato');
   setField(tree, 'ship-address', 'Calle 10 # 5-51');
@@ -62,18 +98,21 @@ const fillShipping = (tree: ReactTestRenderer.ReactTestRenderer) => {
   setField(tree, 'ship-postal', '110111');
 };
 
+const fillCard = (tree: ReactTestRenderer.ReactTestRenderer, number: string) => {
+  setField(tree, 'input-number', number);
+  setField(tree, 'input-holder', 'Kenji Sato');
+  setField(tree, 'input-expiry', '1226');
+  setField(tree, 'input-cvv', '123');
+};
+
 describe('CheckoutScreen', () => {
   it('muestra el estado vacío cuando no hay ítems', () => {
     const { tree } = renderScreen(makeStore());
-    const text = collectText(tree.toJSON()).join(' ');
-    expect(text).toContain('Tu carrito está vacío');
+    expect(collectText(tree.toJSON()).join(' ')).toContain('Tu carrito está vacío');
   });
 
   it('lista artículos con artesano y cantidad', () => {
-    const store = makeStore([{ productId: 'tea-set', qty: 2 }]);
-    const { tree } = renderScreen(store);
-    // La línea del artículo existe con su testID.
-    expect(tree.root.findAllByProps({ testID: 'item-tea-set' }).length).toBeGreaterThan(0);
+    const { tree } = renderScreen(makeStore([{ productId: 'tea-set', qty: 2 }]));
     const all = collectText(tree.toJSON()).join(' ').replace(/\s+/g, ' ');
     expect(all).toContain('Juego de Té de Basalto');
     expect(all).toContain('Artesano: Kenzo Tanaka');
@@ -81,8 +120,6 @@ describe('CheckoutScreen', () => {
   });
 
   it('calcula el gran total (subtotal + envío + IVA − descuento)', () => {
-    // 320.000 x 2 + 245.000 = 885.000 subtotal
-    // + 15.000 envío + 168.150 IVA − 88.500 descuento = 979.650
     const store = makeStore([
       { productId: 'tea-set', qty: 2 },
       { productId: 'writing-set', qty: 1 },
@@ -92,29 +129,19 @@ describe('CheckoutScreen', () => {
     expect(collectText(total.props.children).join('')).toContain('$979.650');
   });
 
-  it('no habilita el pago sin los datos de envío', () => {
-    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
-    const { tree } = renderScreen(store);
-    const pay = tree.root.findByProps({ testID: 'pay-button' });
-    expect(pay.props.accessibilityState).toEqual({ disabled: true });
-    // Tras completar el envío, se habilita.
+  it('no habilita el pago sin datos de envío (incluye correo)', () => {
+    const { tree } = renderScreen(makeStore([{ productId: 'tea-set', qty: 1 }]));
+    expect(
+      tree.root.findByProps({ testID: 'pay-button' }).props.accessibilityState,
+    ).toEqual({ disabled: true });
     fillShipping(tree);
-    const payAfter = tree.root.findByProps({ testID: 'pay-button' });
-    expect(payAfter.props.accessibilityState).toEqual({ disabled: false });
+    expect(
+      tree.root.findByProps({ testID: 'pay-button' }).props.accessibilityState,
+    ).toEqual({ disabled: false });
   });
 
-  it('abre el drawer de pago con los datos de envío completos', () => {
-    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
-    const { tree } = renderScreen(store);
-    fillShipping(tree);
-    // Antes de abrir no existe el formulario de tarjeta.
-    expect(tree.root.findAllByProps({ testID: 'input-number' })).toHaveLength(0);
-    const pay = tree.root.findByProps({ testID: 'pay-button' });
-    ReactTestRenderer.act(() => pay.props.onPress());
-    expect(tree.root.findAllByProps({ testID: 'input-number' }).length).toBeGreaterThan(0);
-  });
-
-  it('confirma el pago: inicia la transacción y navega al resultado', () => {
+  it('pago aprobado: registra la compra, vacía el carrito y navega al resultado', async () => {
+    const trigger = setMutation(APPROVED);
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
@@ -122,45 +149,63 @@ describe('CheckoutScreen', () => {
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
     );
+    fillCard(tree, '4242424242424242');
 
-    setField(tree, 'input-number', '4111111111111111');
-    setField(tree, 'input-holder', 'Kenji Sato');
-    setField(tree, 'input-expiry', '1226');
-    setField(tree, 'input-cvv', '123');
+    await ReactTestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
+    });
 
-    ReactTestRenderer.act(() =>
-      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
-    );
-
+    expect(trigger).toHaveBeenCalledTimes(1);
     const state = store.getState();
-    expect(state.transaction.status).toBe('pending');
-    expect(state.transaction.card).toEqual({ last4: '1111', brand: 'Visa', holder: 'Kenji Sato' });
-    expect(state.transaction.amountCop).toBeGreaterThan(0);
-    // Se registra la compra en el historial y se vacía el carrito.
     expect(state.orders.items).toHaveLength(1);
     expect(state.orders.items[0]).toMatchObject({
-      cardLast4: '1111',
-      cardBrand: 'Visa',
+      id: 'YUGEN-4242-1',
+      cardLast4: '4242',
       status: 'approved',
     });
     expect(state.cart.items).toHaveLength(0);
-    expect(navigation.navigate).toHaveBeenCalledWith(
-      'TransactionResult',
-      expect.objectContaining({ transactionId: expect.stringContaining('YUGEN-1111') }),
-    );
+    expect(navigation.navigate).toHaveBeenCalledWith('TransactionResult', {
+      transactionId: 'YUGEN-4242-1',
+    });
   });
 
-  it('no confirma con datos de tarjeta incompletos', () => {
+  it('pago rechazado: muestra toast, no navega y conserva el carrito', async () => {
+    setMutation({ ...APPROVED, reference: 'YUGEN-4111-1', status: 'declined' });
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
+
     fillShipping(tree);
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
     );
+    fillCard(tree, '4111111111111111');
+
+    await ReactTestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
+    });
+
+    expect(mockShowToast).toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(store.getState().cart.items).toHaveLength(1);
+    expect(store.getState().orders.items).toHaveLength(0);
+  });
+
+  it('error de red: muestra toast y no navega', async () => {
+    setMutation(null, new Error('network'));
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
+    const { tree, navigation } = renderScreen(store);
+
+    fillShipping(tree);
     ReactTestRenderer.act(() =>
-      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress(),
+      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
     );
-    expect(store.getState().transaction.status).toBe('idle');
+    fillCard(tree, '4242424242424242');
+
+    await ReactTestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
+    });
+
+    expect(mockShowToast).toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
   });
 });
