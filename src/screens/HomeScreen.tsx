@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,13 +15,12 @@ import { CategoryChip } from '../components/CategoryChip';
 import { ProductCard } from '../components/ProductCard';
 import { CATEGORIES } from '../data/products';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { addItem, selectCartCount } from '../store/slices/cartSlice';
+import { addItem } from '../store/slices/cartSlice';
 import { theme } from '../theme';
-import type { RootStackScreenProps } from '../navigation/types';
+import type { MainTabScreenProps } from '../navigation/types';
 
 const HERO = require('../../assets/images/hero-sakura.jpg');
 
-/** Chip "Todos" (ver todo el catálogo) + las categorías del catálogo. */
 const ALL_KEY = 'all';
 const FILTERS = [{ key: ALL_KEY, label: 'Todos', icon: 'grid-view' }, ...CATEGORIES];
 
@@ -33,48 +32,19 @@ const normalize = (s: string): string =>
     .replace(/[̀-ͯ]/g, '');
 
 /** Paso 2/7 — Home del marketplace Yūgen. */
-export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
+export const HomeScreen: React.FC<MainTabScreenProps<'Home'>> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const products = useAppSelector((state) => state.products.items);
-  const cartCount = useAppSelector((state) => selectCartCount(state.cart.items));
 
   const [category, setCategory] = useState<string>(ALL_KEY);
   const [query, setQuery] = useState('');
 
-  const scrollRef = useRef<ScrollView>(null);
-  const searchRef = useRef<TextInput>(null);
-
-  const scrollToTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
-  const focusSearch = () => {
-    scrollToTop();
-    searchRef.current?.focus();
-  };
-
-  /** Ítems del nav inferior (Home · Buscar · Carrito · Perfil). */
-  const navItems = [
-    { key: 'home', icon: 'home', label: 'Inicio', onPress: scrollToTop },
-    { key: 'search', icon: 'search', label: 'Buscar', onPress: focusSearch },
-    {
-      key: 'cart',
-      icon: 'shopping-cart',
-      label: 'Carrito',
-      onPress: () => navigation.navigate('Cart'),
-    },
-    {
-      key: 'profile',
-      icon: 'person',
-      label: 'Perfil',
-      onPress: () => navigation.navigate('Profile'),
-    },
-  ];
-
   const q = query.trim();
 
   const visibleProducts = useMemo(() => {
-    // La búsqueda tiene prioridad y corre sobre todo el catálogo.
     if (q) {
       const nq = normalize(q);
       return products.filter(
@@ -91,11 +61,10 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
   return (
     <View style={styles.container}>
       <ScrollView
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + theme.spacing.stackSm, paddingBottom: 96 },
+          { paddingTop: insets.top + theme.spacing.stackSm },
         ]}
       >
         {/* Header */}
@@ -120,7 +89,6 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
             style={styles.searchIcon}
           />
           <TextInput
-            ref={searchRef}
             testID="search-input"
             style={styles.searchInput}
             placeholder="Explora la colección..."
@@ -217,33 +185,6 @@ export const HomeScreen: React.FC<RootStackScreenProps<'Home'>> = ({
           </View>
         )}
       </ScrollView>
-
-      {/* Nav inferior (Home · Buscar · Carrito · Perfil) */}
-      <View style={[styles.bottomNav, { paddingBottom: insets.bottom || 12 }]}>
-        {navItems.map((item, i) => (
-          <Pressable
-            key={item.key}
-            testID={`nav-${item.key}`}
-            hitSlop={8}
-            onPress={item.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={item.label}
-          >
-            <Icon
-              name={item.icon}
-              size={26}
-              color={i === 0 ? theme.colors.primary : theme.colors.onSurfaceVariant}
-            />
-            {item.key === 'cart' && cartCount > 0 ? (
-              <View style={styles.cartBadge}>
-                <AppText variant="labelCaps" color="onPrimary" style={styles.cartBadgeText}>
-                  {cartCount}
-                </AppText>
-              </View>
-            ) : null}
-          </Pressable>
-        ))}
-      </View>
     </View>
   );
 };
@@ -252,6 +193,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   scroll: {
     paddingHorizontal: theme.spacing.marginMobile,
+    paddingBottom: theme.spacing.stackLg,
   },
   header: {
     flexDirection: 'row',
@@ -332,35 +274,6 @@ const styles = StyleSheet.create({
   emptyCategoryText: {
     marginTop: theme.spacing.stackSm,
     textAlign: 'center',
-  },
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: 14,
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.surfaceContainerHigh,
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  cartBadgeText: {
-    fontSize: 10,
-    letterSpacing: 0,
   },
 });
 

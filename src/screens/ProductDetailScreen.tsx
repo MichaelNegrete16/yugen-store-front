@@ -68,7 +68,7 @@ export const ProductDetailScreen: React.FC<
             />
           </Pressable>
           <Pressable
-            onPress={() => navigation.navigate('Cart')}
+            onPress={() => navigation.navigate('Main', { screen: 'Cart' })}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Ver carrito"

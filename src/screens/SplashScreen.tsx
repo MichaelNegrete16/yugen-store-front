@@ -69,7 +69,7 @@ export const SplashScreen: React.FC<RootStackScreenProps<'Splash'>> = ({
     });
     bar.start(({ finished }) => {
       if (finished) {
-        navigation.replace('Home');
+        navigation.replace('Main');
       }
     });
     return () => bar.stop();

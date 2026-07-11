@@ -1,26 +1,37 @@
+import type {
+  NavigatorScreenParams,
+  CompositeScreenProps,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+
+/** Pestañas principales (barra inferior persistente). */
+export type MainTabParamList = {
+  Home: undefined;
+  Cart: undefined;
+  Profile: undefined;
+};
 
 /**
- * Rutas del stack principal — mapea el flujo de 7 pasos del checkout.
- *
- * Notas:
- * - Los pasos 5 (datos de tarjeta) y 6 (resumen de pago) son BACKDROPS
- *   que se muestran sobre la pantalla Checkout, no rutas del stack.
- * - Los params se irán refinando cuando exista Redux (carrito, transacción).
+ * Stack raíz. Las secciones principales viven en `Main` (tabs); las pantallas
+ * de flujo (detalle, checkout, resultado) se apilan encima con flecha atrás.
  */
 export type RootStackParamList = {
   Splash: undefined;
-  Home: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   ProductDetail: { productId: string };
-  Cart: undefined;
   Checkout: undefined;
-  Profile: undefined;
   TransactionResult: { transactionId: string };
 };
 
-/** Helper de props tipadas por pantalla. */
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
+
+export type MainTabScreenProps<T extends keyof MainTabParamList> =
+  CompositeScreenProps<
+    BottomTabScreenProps<MainTabParamList, T>,
+    NativeStackScreenProps<RootStackParamList>
+  >;
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

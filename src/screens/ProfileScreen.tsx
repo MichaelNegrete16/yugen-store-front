@@ -18,7 +18,7 @@ import { setCustomerEmail } from '../store/slices/customerSlice';
 import { useGetOrdersQuery } from '../api/apiSlice';
 import type { Order, OrderStatus } from '../store/slices/ordersSlice';
 import type { ColorToken } from '../theme';
-import type { RootStackScreenProps } from '../navigation/types';
+import type { MainTabScreenProps } from '../navigation/types';
 
 const STATUS_META: Record<OrderStatus, { label: string; color: ColorToken }> = {
   approved: { label: 'Aprobada', color: 'tertiary' },
@@ -35,7 +35,7 @@ const formatDate = (iso: string): string => {
 const isValidEmail = (v: string) => /\S+@\S+\.\S+/.test(v.trim());
 
 /** Perfil — historial de compras del correo del cliente (backend). */
-export const ProfileScreen: React.FC<RootStackScreenProps<'Profile'>> = ({
+export const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
@@ -54,9 +54,6 @@ export const ProfileScreen: React.FC<RootStackScreenProps<'Profile'>> = ({
 
   const TopBar = (
     <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-      <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityLabel="Volver">
-        <Icon name="arrow-back" size={26} color={theme.colors.onSurface} />
-      </Pressable>
       <AppText variant="headlineMd" color="onSurface" style={styles.topTitle}>
         Mi perfil
       </AppText>
