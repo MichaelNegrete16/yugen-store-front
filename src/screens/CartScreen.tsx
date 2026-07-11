@@ -13,14 +13,14 @@ import {
   removeItem,
   selectCartCount,
 } from '../store/slices/cartSlice';
-import type { RootStackScreenProps } from '../navigation/types';
+import type { MainTabScreenProps } from '../navigation/types';
 
 /**
  * Carrito — revisar y editar los artículos antes de pagar.
  * Permite ajustar cantidades (+/−) y eliminar. El CTA "Continuar con el pago"
  * lleva al Checkout (datos de envío + pago).
  */
-export const CartScreen: React.FC<RootStackScreenProps<'Cart'>> = ({
+export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
@@ -52,13 +52,9 @@ export const CartScreen: React.FC<RootStackScreenProps<'Cart'>> = ({
     <View style={styles.container}>
       {/* Barra superior */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityLabel="Volver">
-          <Icon name="arrow-back" size={26} color={theme.colors.onSurface} />
-        </Pressable>
         <AppText variant="headlineMd" color="onSurface" style={styles.topTitle}>
           Tu carrito
         </AppText>
-        <View style={styles.topSpacer} />
       </View>
 
       {empty ? (

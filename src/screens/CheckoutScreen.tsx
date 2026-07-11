@@ -216,7 +216,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           </AppText>
           <Pressable
             style={styles.emptyButton}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('Main', { screen: 'Home' })}
             accessibilityRole="button"
           >
             <AppText variant="labelCaps" color="onPrimary">

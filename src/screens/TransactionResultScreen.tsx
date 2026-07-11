@@ -140,7 +140,7 @@ export const TransactionResultScreen: React.FC<
         <Pressable
           testID="see-orders"
           style={styles.primaryButton}
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('Main', { screen: 'Profile' })}
           accessibilityRole="button"
         >
           <AppText variant="labelCaps" color="onPrimary">
@@ -149,7 +149,7 @@ export const TransactionResultScreen: React.FC<
         </Pressable>
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => navigation.popTo('Home')}
+          onPress={() => navigation.navigate('Main', { screen: 'Home' })}
           accessibilityRole="button"
         >
           <AppText variant="labelCaps" color="onSurface">

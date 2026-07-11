@@ -45,7 +45,7 @@ describe('SplashScreen', () => {
     ReactTestRenderer.act(() => {
       jest.advanceTimersByTime(3000);
     });
-    expect(navigation.replace).toHaveBeenCalledWith('Home');
+    expect(navigation.replace).toHaveBeenCalledWith('Main');
     ReactTestRenderer.act(() => tree.unmount());
   });
 });
