@@ -4,18 +4,34 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-jest.mock('../src/api/apiSlice', () => ({
-  useGetOrdersQuery: jest.fn(() => ({ data: undefined })),
-}));
+jest.mock('../src/api/apiSlice', () => ({ useGetOrdersQuery: jest.fn() }));
 
 import { ProfileScreen } from '../src/screens/ProfileScreen';
+import { useGetOrdersQuery } from '../src/api/apiSlice';
 import cartReducer from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 import ordersReducer, { Order } from '../src/store/slices/ordersSlice';
 import customerReducer from '../src/store/slices/customerSlice';
 
-const makeStore = (orders: Order[] = []) =>
+const mockOrders = useGetOrdersQuery as unknown as jest.Mock;
+const setQuery = (
+  data: Order[] | undefined,
+  extra: { isFetching?: boolean; isError?: boolean } = {},
+) =>
+  mockOrders.mockReturnValue({
+    data,
+    isFetching: extra.isFetching ?? false,
+    isError: extra.isError ?? false,
+    refetch: jest.fn(),
+  });
+
+beforeEach(() => {
+  mockOrders.mockReset();
+  setQuery(undefined);
+});
+
+const makeStore = (orders: Order[] = [], email = '') =>
   configureStore({
     reducer: {
       cart: cartReducer,
@@ -24,7 +40,7 @@ const makeStore = (orders: Order[] = []) =>
       orders: ordersReducer,
       customer: customerReducer,
     },
-    preloadedState: { orders: { items: orders } },
+    preloadedState: { orders: { items: orders }, customer: { email } },
   });
 
 const metrics = {
@@ -64,22 +80,33 @@ const renderScreen = (store: ReturnType<typeof makeStore>) => {
       </Provider>,
     );
   });
-  return { tree, navigation };
+  return { tree, navigation, store };
 };
 
 describe('ProfileScreen', () => {
-  it('muestra el estado vacío sin compras', () => {
-    const { tree } = renderScreen(makeStore());
-    expect(collectText(tree.toJSON()).join(' ')).toContain('Aún no tienes compras');
+  it('sin correo muestra el formulario para ingresarlo', () => {
+    const { tree } = renderScreen(makeStore([], ''));
+    expect(tree.root.findAllByProps({ testID: 'profile-email' }).length).toBeGreaterThan(0);
+    expect(collectText(tree.toJSON()).join(' ')).toContain('Ver mis compras');
   });
 
-  it('lista las compras con su estado y total', () => {
-    const { tree } = renderScreen(
-      makeStore([
-        order({ id: 'YUGEN-1111-1', status: 'approved', amountCop: 979650 }),
-        order({ id: 'YUGEN-2222-2', status: 'pending', amountCop: 120000 }),
-      ]),
+  it('guarda el correo al enviarlo', () => {
+    const { tree, store } = renderScreen(makeStore([], ''));
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'profile-email' }).props.onChangeText('kenji@example.com'),
     );
+    ReactTestRenderer.act(() =>
+      tree.root.findByProps({ testID: 'profile-email-submit' }).props.onPress(),
+    );
+    expect(store.getState().customer.email).toBe('kenji@example.com');
+  });
+
+  it('con correo lista las compras del backend', () => {
+    setQuery([
+      order({ id: 'YUGEN-1111-1', status: 'approved', amountCop: 979650 }),
+      order({ id: 'YUGEN-2222-2', status: 'pending', amountCop: 120000 }),
+    ]);
+    const { tree } = renderScreen(makeStore([], 'kenji@example.com'));
     const text = collectText(tree.toJSON()).join(' ');
     expect(text).toContain('Aprobada');
     expect(text).toContain('Pendiente');
@@ -88,7 +115,8 @@ describe('ProfileScreen', () => {
   });
 
   it('abre el detalle de la compra al tocarla', () => {
-    const { tree, navigation } = renderScreen(makeStore([order({ id: 'YUGEN-1111-1' })]));
+    setQuery([order({ id: 'YUGEN-1111-1' })]);
+    const { tree, navigation } = renderScreen(makeStore([], 'kenji@example.com'));
     ReactTestRenderer.act(() =>
       tree.root.findByProps({ testID: 'order-YUGEN-1111-1' }).props.onPress(),
     );
