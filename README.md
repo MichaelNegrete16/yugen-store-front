@@ -1,97 +1,134 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Yūgen Store — App móvil
 
-# Getting Started
+Marketplace japonés de lujo con **checkout de pago con tarjeta**. App móvil en **React Native** (TypeScript) que consume una **API propia (NestJS)** para catálogo, cotización y pagos.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+- **Flujo:** Splash → Home → Detalle → Carrito → Checkout → Pago → Resultado → Perfil (historial).
+- **Stack:** React Native 0.86, Redux Toolkit + RTK Query (arquitectura Flux), redux-persist con datos de pago **cifrados**, React Navigation (stack + tabs).
+- La app **solo** habla con nuestro backend; las llaves de la pasarela viven en el servidor (nunca en la app).
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## 1. Requisitos previos
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Instalar una sola vez en el equipo:
 
-```sh
-# Using npm
+- **Node.js** 20 LTS o superior + npm
+- **JDK 17** (Microsoft OpenJDK 17)
+- **Android Studio** + SDK (Android 15 / **API 35**), Platform-Tools y Build-Tools
+- Variables de entorno:
+  - `JAVA_HOME` → carpeta del JDK 17
+  - `ANDROID_HOME` → `%LOCALAPPDATA%\Android\Sdk`
+  - Agregar al `Path`: `%ANDROID_HOME%\platform-tools`
+- Un **celular Android** con **Depuración USB** activada (en Xiaomi/MIUI activar además **"Instalar apps vía USB"** en Opciones de desarrollador).
+
+Verificar que todo esté OK:
+
+```powershell
+node -v
+adb devices        # debe listar tu celular
+npx react-native doctor
+```
+
+---
+
+## 2. Instalar dependencias
+
+```powershell
+git clone https://github.com/MichaelNegrete16/yugen-store-front.git
+cd yugen-store-front
+npm install
+```
+
+---
+
+## 3. Correr en desarrollo (con recarga en caliente)
+
+Con el celular conectado por USB. Se usan **dos terminales**.
+
+**Terminal 1 — Metro (servidor de JS):**
+
+```powershell
+cd yugen-store-front
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+**Terminal 2 — compilar e instalar en el celular:**
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```powershell
+cd yugen-store-front\android
+.\gradlew.bat app:installDebug
+cd ..
+adb reverse tcp:8081 tcp:8081
 ```
 
-### iOS
+Abre la app en el celular. Los cambios de código se reflejan al instante (Fast Refresh).
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+> **Nota (Windows):** `npx react-native run-android` a veces falla con *"gradlew.bat no se reconoce…"*. Por eso arriba se compila con `.\gradlew.bat app:installDebug` directo, que es lo confiable.
+>
+> **Nota:** si instalas dependencias nuevas, reinicia Metro con caché limpia: `npm start -- --reset-cache`.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+---
 
-```sh
-bundle install
+## 4. Generar la APK (release, standalone)
+
+Genera una APK con el JS empaquetado adentro — **funciona sin Metro ni PC**, solo necesita internet (consume el backend):
+
+```powershell
+cd yugen-store-front\android
+.\gradlew.bat assembleRelease
 ```
 
-Then, and every time you update your native dependencies, run:
+La APK queda en:
 
-```sh
-bundle exec pod install
+```
+android\app\build\outputs\apk\release\app-release.apk
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Instalarla en un celular conectado:
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+```powershell
+adb install -r android\app\build\outputs\apk\release\app-release.apk
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+> Está firmada con el *debug keystore* (config del template). Suficiente para distribuir/probar; para Play Store se generaría un keystore propio.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+---
 
-## Step 3: Modify your app
+## 5. Tests y cobertura
 
-Now that you have successfully run the app, let's make changes!
+```powershell
+npm test                 # corre todos los tests
+npm test -- --coverage   # con reporte de cobertura
+```
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+**Resultado actual:** 70 tests en 17 suites, todos en verde.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+| Métrica | Cobertura |
+|---|---|
+| Statements | **85.6%** |
+| Lines | **87.0%** |
+| Branches | 73.3% |
+| Functions | 73.7% |
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+---
 
-## Congratulations! :tada:
+## 6. Estructura del proyecto
 
-You've successfully run and modified your React Native App. :partying_face:
+```
+src/
+  api/          Cliente RTK Query (endpoints: products, quote, transactions, orders)
+  components/   AppText, ProductCard, CreditCard, PaymentDrawer, BrandLoader, RemoteImage...
+  navigation/   Stack raíz + Tab Navigator (barra inferior persistente)
+  screens/      Splash, Home, ProductDetail, Cart, Checkout, TransactionResult, Profile
+  store/        Redux Toolkit + slices (cart, transaction, orders, products, customer) + persist cifrado
+  theme/        Sistema de diseño Yūgen (colores, tipografía, spacing)
+  utils/        formato de precios (COP), validación de tarjeta, pricing, toast
+```
 
-### Now what?
+---
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+## 7. Notas
 
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- **Backend:** la app consume una API pública desplegada (ver `src/api/config.ts`). No requiere configuración local.
+- **Pagos:** usa el ambiente **sandbox** de la pasarela; las tarjetas son de prueba (ej. `4242…` aprueba, `4111…` rechaza). No se mueve dinero real.
+- **Seguridad:** la app no contiene credenciales; los datos de la transacción se persisten **cifrados** en el dispositivo.
