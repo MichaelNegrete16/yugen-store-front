@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Image } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from './AppText';
+import { RemoteImage } from './RemoteImage';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import type { Product } from '../data/products';
@@ -26,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       accessibilityRole="button"
     >
       <View style={styles.imageWrap}>
-        <Image source={product.image} style={styles.image} resizeMode="cover" />
+        <RemoteImage uri={product.image} style={styles.image} showLabel={false} />
         {product.badge ? (
           <View style={styles.badge}>
             <AppText variant="labelCaps" color="onSurface" style={styles.badgeText}>

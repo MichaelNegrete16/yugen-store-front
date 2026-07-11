@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Image,
   TextInput,
   Pressable,
 } from 'react-native';
@@ -11,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
 import { Avatar } from '../components/Avatar';
+import { RemoteImage } from '../components/RemoteImage';
 import { PaymentDrawer } from '../components/PaymentDrawer';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
@@ -166,7 +166,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           </AppText>
           {lines.map(({ product, qty, lineTotal }) => (
             <View key={product.id} testID={`item-${product.id}`} style={styles.item}>
-              <Image source={product.image} style={styles.thumb} resizeMode="cover" />
+              <RemoteImage uri={product.image} style={styles.thumb} showLabel={false} />
               <View style={styles.itemBody}>
                 <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
                   {product.name}

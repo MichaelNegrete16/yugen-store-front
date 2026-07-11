@@ -3,13 +3,13 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Image,
   Pressable,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from '../components/AppText';
+import { RemoteImage } from '../components/RemoteImage';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -87,10 +87,9 @@ export const ProductDetailScreen: React.FC<
         contentContainerStyle={styles.scroll}
       >
         {/* Imagen full-bleed */}
-        <Image
-          source={product.image}
-          style={{ width: screenWidth, height: screenWidth * 0.9, backgroundColor: theme.colors.surfaceContainer }}
-          resizeMode="cover"
+        <RemoteImage
+          uri={product.image}
+          style={{ width: screenWidth, height: screenWidth * 0.9 }}
         />
 
         <View style={styles.content}>
