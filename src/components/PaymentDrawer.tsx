@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppText } from './AppText';
 import { CreditCard } from './CreditCard';
+import { BrandLoader } from './BrandLoader';
 import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import {
@@ -81,25 +82,39 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!loading) onClose();
+      }}
     >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar pago" />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.panelWrap}
-        >
-          <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
-            <View style={styles.header}>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
-                <Icon name="close" size={26} color={theme.colors.onSurface} />
-              </Pressable>
-              <AppText variant="labelCaps" color="primary">
-                PAGO SEGURO
-              </AppText>
-            </View>
+      {loading ? (
+        <View style={styles.fullLoader}>
+          <BrandLoader
+            title="Procesando tu pago"
+            subtitle="Estamos confirmando con tu banco. Por favor no cierres esta ventana."
+          />
+        </View>
+      ) : (
+        <View style={styles.overlay}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={onClose}
+            accessibilityLabel="Cerrar pago"
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.panelWrap}
+          >
+            <View style={[styles.panel, { paddingTop: insets.top + 8, paddingBottom: (insets.bottom || 12) + 8 }]}>
+                <View style={styles.header}>
+                  <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
+                    <Icon name="close" size={26} color={theme.colors.onSurface} />
+                  </Pressable>
+                  <AppText variant="labelCaps" color="primary">
+                    PAGO SEGURO
+                  </AppText>
+                </View>
 
-            <ScrollView
+                <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scroll}
               keyboardShouldPersistTaps="handled"
@@ -177,16 +192,17 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
                 accessibilityRole="button"
               >
                 <AppText variant="labelCaps" color="onPrimary">
-                  {loading ? 'Procesando…' : `Confirmar pago — ${formatCop(amountCop)}`}
+                  Confirmar pago — {formatCop(amountCop)}
                 </AppText>
               </Pressable>
               <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
                 Al confirmar aceptas nuestros términos de comercio artesanal.
               </AppText>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
+                </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      )}
     </Modal>
   );
 };
@@ -207,6 +223,12 @@ const Field: React.FC<{
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
+  fullLoader: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   backdrop: {
     position: 'absolute',
     top: 0,

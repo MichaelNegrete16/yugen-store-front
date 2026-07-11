@@ -86,30 +86,45 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
     setProcessing(true);
     try {
-      let tx = await createTransaction({
-        customer: { email: email.trim(), fullName: `${firstName} ${lastName}`.trim() },
-        shipping: {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          address: address.trim(),
-          city: city.trim(),
-          postalCode: postal.trim(),
-          country: 'Colombia',
-        },
-        items,
-        card: {
-          number: card.number,
-          cardHolder: card.cardHolder,
-          expMonth: card.expMonth,
-          expYear: card.expYear,
-          cvc: card.cvc,
-          installments: 1,
-        },
-      }).unwrap();
+      let tx;
+      try {
+        tx = await createTransaction({
+          customer: { email: email.trim(), fullName: `${firstName} ${lastName}`.trim() },
+          shipping: {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            address: address.trim(),
+            city: city.trim(),
+            postalCode: postal.trim(),
+            country: 'Colombia',
+          },
+          items,
+          discountCode: DISCOUNT_CODE,
+          card: {
+            number: card.number,
+            cardHolder: card.cardHolder,
+            expMonth: card.expMonth,
+            expYear: card.expYear,
+            cvc: card.cvc,
+            installments: 1,
+          },
+        }).unwrap();
+      } catch {
+        setPayOpen(false);
+        showToast('No pudimos iniciar el pago. Revisa tu conexión e intenta de nuevo.');
+        return;
+      }
 
-      for (let attempt = 0; tx.status === 'pending' && attempt < 6; attempt++) {
-        if (attempt > 0) await sleep(1200);
-        tx = await pollTransaction(tx.reference).unwrap();
+      // La transacción ya está creada (PENDING). Consultamos el estado final
+      // tolerando fallos de red en el polling para no perder la compra.
+      for (let attempt = 0; tx.status === 'pending' && attempt < 8; attempt++) {
+        if (attempt > 0) await sleep(1500);
+        try {
+          const polled = await pollTransaction(tx.reference).unwrap();
+          if (polled) tx = polled;
+        } catch {
+          // reintenta en la siguiente vuelta
+        }
       }
 
       const amount = tx.amountCop || tx.breakdown?.total || summary.total;
@@ -144,9 +159,6 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       dispatch(clearCart());
       setPayOpen(false);
       navigation.navigate('TransactionResult', { transactionId: tx.reference });
-    } catch {
-      setPayOpen(false);
-      showToast('No pudimos procesar el pago. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setProcessing(false);
     }
