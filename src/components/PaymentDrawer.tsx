@@ -23,24 +23,32 @@ import {
   last4,
   isCardComplete,
 } from '../utils/card';
-import type { CardInfo } from '../store/slices/transactionSlice';
+
+/** Datos completos de la tarjeta al confirmar (para tokenizar en el backend). */
+export interface ConfirmedCard {
+  /** Número sin espacios. */
+  number: string;
+  cardHolder: string;
+  expMonth: string;
+  expYear: string;
+  cvc: string;
+  brand: string;
+  last4: string;
+}
 
 export interface PaymentDrawerProps {
   visible: boolean;
   amountCop: number;
+  /** Muestra estado de carga mientras se procesa el pago. */
+  loading?: boolean;
   onClose: () => void;
-  /** Se llama al confirmar con los datos seguros de la tarjeta (sin el número completo). */
-  onConfirm: (card: CardInfo) => void;
+  onConfirm: (card: ConfirmedCard) => void;
 }
 
-/**
- * Drawer de pago (pasos 5 y 6 del flujo): captura los datos de la tarjeta
- * sobre una tarjeta interactiva que se voltea al enfocar el CVV.
- * El pago es MOCK; el empalme real con la pasarela sandbox es la última fase.
- */
 export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   visible,
   amountCop,
+  loading = false,
   onClose,
   onConfirm,
 }) => {
@@ -55,8 +63,17 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   const brand = number ? detectBrand(number) : undefined;
 
   const handleConfirm = () => {
-    if (!complete) return;
-    onConfirm({ last4: last4(number), brand: detectBrand(number), holder: holder.trim() });
+    if (!complete || loading) return;
+    const [mm = '', yy = ''] = expiry.split('/').map((s) => s.trim());
+    onConfirm({
+      number: number.replace(/\D/g, ''),
+      cardHolder: holder.trim(),
+      expMonth: mm,
+      expYear: yy,
+      cvc: cvv,
+      brand: detectBrand(number),
+      last4: last4(number),
+    });
   };
 
   return (
@@ -154,13 +171,13 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
 
               <Pressable
                 testID="confirm-payment"
-                style={[styles.confirm, !complete && styles.confirmDisabled]}
+                style={[styles.confirm, (!complete || loading) && styles.confirmDisabled]}
                 onPress={handleConfirm}
-                disabled={!complete}
+                disabled={!complete || loading}
                 accessibilityRole="button"
               >
                 <AppText variant="labelCaps" color="onPrimary">
-                  Confirmar pago — {formatCop(amountCop)}
+                  {loading ? 'Procesando…' : `Confirmar pago — ${formatCop(amountCop)}`}
                 </AppText>
               </Pressable>
               <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.terms}>
