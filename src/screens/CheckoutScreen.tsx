@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startTransaction, setTransactionResult } from '../store/slices/transactionSlice';
 import { addOrder } from '../store/slices/ordersSlice';
 import { clearCart } from '../store/slices/cartSlice';
+import { setCustomerEmail } from '../store/slices/customerSlice';
 import {
   useCreateTransactionMutation,
   useLazyGetTransactionQuery,
@@ -152,6 +153,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       }
 
       const amount = tx.amountCop || tx.breakdown?.total || summary.total;
+      dispatch(setCustomerEmail(email.trim()));
       dispatch(
         startTransaction({
           reference: tx.reference,

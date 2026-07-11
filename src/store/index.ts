@@ -15,6 +15,7 @@ import cartReducer from './slices/cartSlice';
 import transactionReducer from './slices/transactionSlice';
 import productsReducer from './slices/productsSlice';
 import ordersReducer from './slices/ordersSlice';
+import customerReducer from './slices/customerSlice';
 import { api } from '../api/apiSlice';
 
 /**
@@ -49,6 +50,10 @@ const rootReducer = combineReducers({
   cart: persistReducer(cartPersistConfig, cartReducer),
   transaction: persistReducer(transactionPersistConfig, transactionReducer),
   orders: persistReducer(ordersPersistConfig, ordersReducer),
+  customer: persistReducer(
+    { key: 'customer', storage: AsyncStorage },
+    customerReducer,
+  ),
   products: productsReducer,
   // Caché de RTK Query (no se persiste).
   [api.reducerPath]: api.reducer,

@@ -3,11 +3,17 @@ import ReactTestRenderer from 'react-test-renderer';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+jest.mock('../src/api/apiSlice', () => ({
+  useGetOrdersQuery: jest.fn(() => ({ data: undefined })),
+}));
+
 import { ProfileScreen } from '../src/screens/ProfileScreen';
 import cartReducer from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 import ordersReducer, { Order } from '../src/store/slices/ordersSlice';
+import customerReducer from '../src/store/slices/customerSlice';
 
 const makeStore = (orders: Order[] = []) =>
   configureStore({
@@ -16,6 +22,7 @@ const makeStore = (orders: Order[] = []) =>
       products: productsReducer,
       transaction: transactionReducer,
       orders: ordersReducer,
+      customer: customerReducer,
     },
     preloadedState: { orders: { items: orders } },
   });
