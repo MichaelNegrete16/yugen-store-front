@@ -14,6 +14,7 @@ import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { addToCart, selectCartCount } from '../store/slices/cartSlice';
+import { useGetProductQuery } from '../api/apiSlice';
 import type { RootStackScreenProps } from '../navigation/types';
 
 /** Paso 3/7 — Detalle y selección de producto. */
@@ -23,9 +24,11 @@ export const ProductDetailScreen: React.FC<
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const dispatch = useAppDispatch();
-  const product = useAppSelector((state) =>
+  const { data: fetched } = useGetProductQuery(route.params.productId);
+  const stored = useAppSelector((state) =>
     state.products.items.find((p) => p.id === route.params.productId),
   );
+  const product = fetched ?? stored;
   const cartCount = useAppSelector((s) => selectCartCount(s.cart.items));
 
   const [qty, setQty] = useState(1);
