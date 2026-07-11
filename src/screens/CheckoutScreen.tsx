@@ -16,16 +16,15 @@ import { theme } from '../theme';
 import { formatCop } from '../utils/format';
 import { computeOrderSummary, DISCOUNT_CODE } from '../utils/pricing';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { startTransaction, CardInfo } from '../store/slices/transactionSlice';
+import { startTransaction, setTransactionResult } from '../store/slices/transactionSlice';
 import { addOrder } from '../store/slices/ordersSlice';
 import { clearCart } from '../store/slices/cartSlice';
+import { useCreateTransactionMutation } from '../api/apiSlice';
+import { showToast } from '../utils/toast';
+import type { ConfirmedCard } from '../components/PaymentDrawer';
 import type { RootStackScreenProps } from '../navigation/types';
 
-/**
- * Paso 4/7 — Checkout: datos de envío, artículos y resumen del pedido.
- * El botón "Pagar con tarjeta" abre el drawer de pago (pasos 5 y 6).
- * El pago es MOCK; el empalme con la pasarela sandbox es la última fase.
- */
+/** Paso 4/7 — Checkout: datos de envío, artículos, resumen y pago. */
 export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   navigation,
 }) => {
@@ -33,9 +32,10 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((s) => s.cart.items);
   const products = useAppSelector((s) => s.products.items);
+  const [createTransaction, { isLoading: paying }] = useCreateTransactionMutation();
 
   const [payOpen, setPayOpen] = useState(false);
-  // Datos de envío (locales; el diseño los muestra como formulario editable).
+  const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [address, setAddress] = useState('');
@@ -65,43 +65,78 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
   const empty = lines.length === 0;
 
-  // El pago solo se habilita con los datos de envío completos.
   const shippingComplete =
+    /\S+@\S+\.\S+/.test(email.trim()) &&
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     address.trim().length > 0 &&
     city.trim().length > 0 &&
     postal.trim().length > 0;
 
-  const handleConfirm = (card: CardInfo) => {
-    const reference = `YUGEN-${card.last4}-${Date.now()}`;
+  const handleConfirm = async (card: ConfirmedCard) => {
     const productIds = lines.map((l) => l.product.id);
     const itemCount = lines.reduce((sum, l) => sum + l.qty, 0);
-    dispatch(
-      startTransaction({
-        reference,
-        amountCop: summary.total,
-        productIds,
-        card,
-      }),
-    );
-    // Pago MOCK: se registra la compra como aprobada. El empalme real con la
-    // pasarela (última fase) reemplazará este estado por el que devuelva el backend.
-    dispatch(
-      addOrder({
-        id: reference,
-        createdAt: new Date().toISOString(),
-        amountCop: summary.total,
-        itemCount,
-        productIds,
-        cardLast4: card.last4,
-        cardBrand: card.brand,
-        status: 'approved',
-      }),
-    );
-    dispatch(clearCart());
-    setPayOpen(false);
-    navigation.navigate('TransactionResult', { transactionId: reference });
+    const items = lines.map((l) => ({ productId: l.product.id, qty: l.qty }));
+
+    try {
+      const res = await createTransaction({
+        customer: { email: email.trim(), fullName: `${firstName} ${lastName}`.trim() },
+        shipping: {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          postalCode: postal.trim(),
+          country: 'Colombia',
+        },
+        items,
+        card: {
+          number: card.number,
+          cardHolder: card.cardHolder,
+          expMonth: card.expMonth,
+          expYear: card.expYear,
+          cvc: card.cvc,
+          installments: 1,
+        },
+      }).unwrap();
+
+      const amount = res.amountCop || res.breakdown?.total || summary.total;
+
+      dispatch(
+        startTransaction({
+          reference: res.reference,
+          amountCop: amount,
+          productIds,
+          card: { last4: card.last4, brand: card.brand, holder: card.cardHolder },
+        }),
+      );
+      dispatch(setTransactionResult({ id: res.id, status: res.status, updatedAt: res.createdAt }));
+
+      if (res.status === 'declined' || res.status === 'error') {
+        setPayOpen(false);
+        showToast('Pago rechazado. Verifica los datos o intenta con otra tarjeta.');
+        return;
+      }
+
+      dispatch(
+        addOrder({
+          id: res.reference,
+          createdAt: res.createdAt,
+          amountCop: amount,
+          itemCount,
+          productIds,
+          cardLast4: res.cardLast4 || card.last4,
+          cardBrand: res.cardBrand || card.brand,
+          status: res.status,
+        }),
+      );
+      dispatch(clearCart());
+      setPayOpen(false);
+      navigation.navigate('TransactionResult', { transactionId: res.reference });
+    } catch {
+      setPayOpen(false);
+      showToast('No pudimos procesar el pago. Revisa tu conexión e intenta de nuevo.');
+    }
   };
 
   return (
@@ -149,6 +184,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
             01 — DATOS DE ENVÍO
           </AppText>
           <View style={styles.formCard}>
+            <ShippingField testID="ship-email" label="CORREO ELECTRÓNICO" value={email} onChangeText={setEmail} placeholder="tucorreo@ejemplo.com" keyboardType="email-address" />
             <View style={styles.formRow}>
               <ShippingField testID="ship-firstName" label="NOMBRE" value={firstName} onChangeText={setFirstName} placeholder="Kenji" style={styles.formRowItem} />
               <ShippingField testID="ship-lastName" label="APELLIDO" value={lastName} onChangeText={setLastName} placeholder="Sato" style={styles.formRowItem} />
@@ -242,6 +278,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       <PaymentDrawer
         visible={payOpen}
         amountCop={summary.total}
+        loading={paying}
         onClose={() => setPayOpen(false)}
         onConfirm={handleConfirm}
       />
@@ -255,7 +292,7 @@ const ShippingField: React.FC<{
   value: string;
   onChangeText: (t: string) => void;
   placeholder?: string;
-  keyboardType?: 'default' | 'number-pad';
+  keyboardType?: 'default' | 'number-pad' | 'email-address';
   testID?: string;
   style?: object;
 }> = ({ label, value, onChangeText, placeholder, keyboardType = 'default', testID, style }) => (
