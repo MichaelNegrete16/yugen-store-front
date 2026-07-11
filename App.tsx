@@ -9,6 +9,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/store';
+import { ProductsSync } from './src/api/ProductsSync';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { theme } from './src/theme';
 
@@ -16,6 +17,7 @@ function App() {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
+        <ProductsSync />
         <SafeAreaProvider>
           <StatusBar
             barStyle="dark-content"

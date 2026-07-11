@@ -1,5 +1,3 @@
-import type { ImageSourcePropType } from 'react-native';
-
 /** Producto del catálogo Yūgen. */
 export interface Product {
   id: string;
@@ -7,7 +5,8 @@ export interface Product {
   /** Precio en pesos colombianos (COP, sin decimales). */
   priceCop: number;
   category: string;
-  image: ImageSourcePropType;
+  /** URL de la imagen (servida por el backend). Puede fallar → placeholder. */
+  image: string;
   rating: number;
   stock: number;
   badge?: string;
@@ -25,8 +24,8 @@ export const CATEGORIES: { key: string; label: string; icon: string }[] = [
 ];
 
 /**
- * Catálogo mock (datos e imágenes tomados del diseño Yūgen).
- * Se reemplazará por el catálogo servido desde el backend.
+ * Catálogo mock (fallback offline mientras carga o si el backend no responde).
+ * En runtime se reemplaza por el catálogo servido desde el backend (RTK Query).
  */
 export const PRODUCTS: Product[] = [
   {
@@ -34,7 +33,7 @@ export const PRODUCTS: Product[] = [
     name: 'Juego de Té de Basalto',
     priceCop: 320000,
     category: 'tea',
-    image: require('../../assets/images/products/tea-set.jpg'),
+    image: 'https://images.unsplash.com/photo-1563822249366-3efb23b8e0c9',
     rating: 4.9,
     stock: 8,
     badge: 'Nuevo',
@@ -47,7 +46,7 @@ export const PRODUCTS: Product[] = [
     name: 'Set de Escritura en Ebonita',
     priceCop: 245000,
     category: 'gifts',
-    image: require('../../assets/images/products/writing-set.jpg'),
+    image: 'https://images.unsplash.com/photo-1455390582262-044cdead277a',
     rating: 5.0,
     stock: 5,
     description:
@@ -59,7 +58,7 @@ export const PRODUCTS: Product[] = [
     name: 'Set Ritual de Matcha Kuroi',
     priceCop: 340000,
     category: 'tea',
-    image: require('../../assets/images/products/matcha-set.jpg'),
+    image: 'https://images.unsplash.com/photo-1536013455962-4dc3b8f0f3a9',
     rating: 5.0,
     stock: 3,
     badge: 'Edición Limitada',
