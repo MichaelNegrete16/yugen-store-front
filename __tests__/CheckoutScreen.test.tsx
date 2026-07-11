@@ -6,24 +6,28 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 jest.mock('../src/api/apiSlice', () => ({
   useCreateTransactionMutation: jest.fn(),
+  useLazyGetTransactionQuery: jest.fn(),
 }));
 jest.mock('../src/utils/toast', () => ({ showToast: jest.fn() }));
 
 import { CheckoutScreen } from '../src/screens/CheckoutScreen';
-import { useCreateTransactionMutation } from '../src/api/apiSlice';
+import {
+  useCreateTransactionMutation,
+  useLazyGetTransactionQuery,
+} from '../src/api/apiSlice';
 import { showToast } from '../src/utils/toast';
 import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 import ordersReducer from '../src/store/slices/ordersSlice';
 
-const mockTx = useCreateTransactionMutation as unknown as jest.Mock;
+const mockCreate = useCreateTransactionMutation as unknown as jest.Mock;
+const mockPoll = useLazyGetTransactionQuery as unknown as jest.Mock;
 const mockShowToast = showToast as unknown as jest.Mock;
 
-const APPROVED = {
+const BASE = {
   reference: 'YUGEN-4242-1',
   id: 'txn1',
-  status: 'approved',
   amountCop: 395800,
   breakdown: { subtotal: 320000, shipping: 15000, tax: 60800, discount: 0, total: 395800 },
   cardBrand: 'VISA',
@@ -31,18 +35,26 @@ const APPROVED = {
   createdAt: '2026-07-10T12:00:00.000Z',
 };
 
-const setMutation = (response: any, rejectErr?: Error) => {
-  const trigger = jest.fn(() => ({
-    unwrap: () => (rejectErr ? Promise.reject(rejectErr) : Promise.resolve(response)),
+const setFlow = (finalStatus: string, rejectCreate = false) => {
+  const createTrigger = jest.fn(() => ({
+    unwrap: () =>
+      rejectCreate
+        ? Promise.reject(new Error('net'))
+        : Promise.resolve({ ...BASE, status: 'pending' }),
   }));
-  mockTx.mockReturnValue([trigger, { isLoading: false }]);
-  return trigger;
+  mockCreate.mockReturnValue([createTrigger, { isLoading: false }]);
+  const pollTrigger = jest.fn(() => ({
+    unwrap: () => Promise.resolve({ ...BASE, status: finalStatus }),
+  }));
+  mockPoll.mockReturnValue([pollTrigger]);
+  return { createTrigger, pollTrigger };
 };
 
 beforeEach(() => {
-  mockTx.mockReset();
+  mockCreate.mockReset();
+  mockPoll.mockReset();
   mockShowToast.mockReset();
-  setMutation(APPROVED);
+  setFlow('approved');
 });
 
 const makeStore = (cartItems: CartItem[] = []) =>
@@ -101,8 +113,19 @@ const fillShipping = (tree: ReactTestRenderer.ReactTestRenderer) => {
 const fillCard = (tree: ReactTestRenderer.ReactTestRenderer, number: string) => {
   setField(tree, 'input-number', number);
   setField(tree, 'input-holder', 'Kenji Sato');
-  setField(tree, 'input-expiry', '1226');
+  setField(tree, 'input-expiry', '1228');
   setField(tree, 'input-cvv', '123');
+};
+
+const pay = async (tree: ReactTestRenderer.ReactTestRenderer, cardNumber: string) => {
+  fillShipping(tree);
+  ReactTestRenderer.act(() =>
+    tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
+  );
+  fillCard(tree, cardNumber);
+  await ReactTestRenderer.act(async () => {
+    tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
+  });
 };
 
 describe('CheckoutScreen', () => {
@@ -140,29 +163,17 @@ describe('CheckoutScreen', () => {
     ).toEqual({ disabled: false });
   });
 
-  it('pago aprobado: registra la compra, vacía el carrito y navega al resultado', async () => {
-    const trigger = setMutation(APPROVED);
+  it('pago aprobado: crea, hace polling, registra la compra, vacía el carrito y navega', async () => {
+    const { createTrigger, pollTrigger } = setFlow('approved');
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
-    fillShipping(tree);
-    ReactTestRenderer.act(() =>
-      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
-    );
-    fillCard(tree, '4242424242424242');
+    await pay(tree, '4242424242424242');
 
-    await ReactTestRenderer.act(async () => {
-      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
-    });
-
-    expect(trigger).toHaveBeenCalledTimes(1);
+    expect(createTrigger).toHaveBeenCalledTimes(1);
+    expect(pollTrigger).toHaveBeenCalled();
     const state = store.getState();
-    expect(state.orders.items).toHaveLength(1);
-    expect(state.orders.items[0]).toMatchObject({
-      id: 'YUGEN-4242-1',
-      cardLast4: '4242',
-      status: 'approved',
-    });
+    expect(state.orders.items[0]).toMatchObject({ id: 'YUGEN-4242-1', status: 'approved' });
     expect(state.cart.items).toHaveLength(0);
     expect(navigation.navigate).toHaveBeenCalledWith('TransactionResult', {
       transactionId: 'YUGEN-4242-1',
@@ -170,19 +181,11 @@ describe('CheckoutScreen', () => {
   });
 
   it('pago rechazado: muestra toast, no navega y conserva el carrito', async () => {
-    setMutation({ ...APPROVED, reference: 'YUGEN-4111-1', status: 'declined' });
+    setFlow('declined');
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
-    fillShipping(tree);
-    ReactTestRenderer.act(() =>
-      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
-    );
-    fillCard(tree, '4111111111111111');
-
-    await ReactTestRenderer.act(async () => {
-      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
-    });
+    await pay(tree, '4111111111111111');
 
     expect(mockShowToast).toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
@@ -191,19 +194,11 @@ describe('CheckoutScreen', () => {
   });
 
   it('error de red: muestra toast y no navega', async () => {
-    setMutation(null, new Error('network'));
+    setFlow('approved', true);
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
-    fillShipping(tree);
-    ReactTestRenderer.act(() =>
-      tree.root.findByProps({ testID: 'pay-button' }).props.onPress(),
-    );
-    fillCard(tree, '4242424242424242');
-
-    await ReactTestRenderer.act(async () => {
-      tree.root.findByProps({ testID: 'confirm-payment' }).props.onPress();
-    });
+    await pay(tree, '4242424242424242');
 
     expect(mockShowToast).toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();

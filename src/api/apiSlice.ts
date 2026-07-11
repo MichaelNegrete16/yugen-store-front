@@ -113,5 +113,6 @@ export const {
   useQuoteMutation,
   useCreateTransactionMutation,
   useGetTransactionQuery,
+  useLazyGetTransactionQuery,
   useGetOrdersQuery,
 } = api;

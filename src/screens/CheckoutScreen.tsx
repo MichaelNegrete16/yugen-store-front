@@ -19,7 +19,10 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startTransaction, setTransactionResult } from '../store/slices/transactionSlice';
 import { addOrder } from '../store/slices/ordersSlice';
 import { clearCart } from '../store/slices/cartSlice';
-import { useCreateTransactionMutation } from '../api/apiSlice';
+import {
+  useCreateTransactionMutation,
+  useLazyGetTransactionQuery,
+} from '../api/apiSlice';
 import { showToast } from '../utils/toast';
 import type { ConfirmedCard } from '../components/PaymentDrawer';
 import type { RootStackScreenProps } from '../navigation/types';
@@ -33,8 +36,10 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   const cartItems = useAppSelector((s) => s.cart.items);
   const products = useAppSelector((s) => s.products.items);
   const [createTransaction, { isLoading: paying }] = useCreateTransactionMutation();
+  const [pollTransaction] = useLazyGetTransactionQuery();
 
   const [payOpen, setPayOpen] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -77,9 +82,11 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
     const productIds = lines.map((l) => l.product.id);
     const itemCount = lines.reduce((sum, l) => sum + l.qty, 0);
     const items = lines.map((l) => ({ productId: l.product.id, qty: l.qty }));
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+    setProcessing(true);
     try {
-      const res = await createTransaction({
+      let tx = await createTransaction({
         customer: { email: email.trim(), fullName: `${firstName} ${lastName}`.trim() },
         shipping: {
           firstName: firstName.trim(),
@@ -100,19 +107,23 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
         },
       }).unwrap();
 
-      const amount = res.amountCop || res.breakdown?.total || summary.total;
+      for (let attempt = 0; tx.status === 'pending' && attempt < 6; attempt++) {
+        if (attempt > 0) await sleep(1200);
+        tx = await pollTransaction(tx.reference).unwrap();
+      }
 
+      const amount = tx.amountCop || tx.breakdown?.total || summary.total;
       dispatch(
         startTransaction({
-          reference: res.reference,
+          reference: tx.reference,
           amountCop: amount,
           productIds,
           card: { last4: card.last4, brand: card.brand, holder: card.cardHolder },
         }),
       );
-      dispatch(setTransactionResult({ id: res.id, status: res.status, updatedAt: res.createdAt }));
+      dispatch(setTransactionResult({ id: tx.id, status: tx.status, updatedAt: tx.createdAt }));
 
-      if (res.status === 'declined' || res.status === 'error') {
+      if (tx.status === 'declined' || tx.status === 'error') {
         setPayOpen(false);
         showToast('Pago rechazado. Verifica los datos o intenta con otra tarjeta.');
         return;
@@ -120,22 +131,24 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
       dispatch(
         addOrder({
-          id: res.reference,
-          createdAt: res.createdAt,
+          id: tx.reference,
+          createdAt: tx.createdAt,
           amountCop: amount,
           itemCount,
           productIds,
-          cardLast4: res.cardLast4 || card.last4,
-          cardBrand: res.cardBrand || card.brand,
-          status: res.status,
+          cardLast4: tx.cardLast4 || card.last4,
+          cardBrand: tx.cardBrand || card.brand,
+          status: tx.status,
         }),
       );
       dispatch(clearCart());
       setPayOpen(false);
-      navigation.navigate('TransactionResult', { transactionId: res.reference });
+      navigation.navigate('TransactionResult', { transactionId: tx.reference });
     } catch {
       setPayOpen(false);
       showToast('No pudimos procesar el pago. Revisa tu conexión e intenta de nuevo.');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -278,7 +291,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       <PaymentDrawer
         visible={payOpen}
         amountCop={summary.total}
-        loading={paying}
+        loading={paying || processing}
         onClose={() => setPayOpen(false)}
         onConfirm={handleConfirm}
       />
