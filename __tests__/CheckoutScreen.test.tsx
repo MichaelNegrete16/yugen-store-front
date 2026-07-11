@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 jest.mock('../src/api/apiSlice', () => ({
   useCreateTransactionMutation: jest.fn(),
   useLazyGetTransactionQuery: jest.fn(),
+  useQuoteMutation: jest.fn(),
 }));
 jest.mock('../src/utils/toast', () => ({ showToast: jest.fn() }));
 
@@ -14,6 +15,7 @@ import { CheckoutScreen } from '../src/screens/CheckoutScreen';
 import {
   useCreateTransactionMutation,
   useLazyGetTransactionQuery,
+  useQuoteMutation,
 } from '../src/api/apiSlice';
 import { showToast } from '../src/utils/toast';
 import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
@@ -23,6 +25,7 @@ import ordersReducer from '../src/store/slices/ordersSlice';
 
 const mockCreate = useCreateTransactionMutation as unknown as jest.Mock;
 const mockPoll = useLazyGetTransactionQuery as unknown as jest.Mock;
+const mockQuote = useQuoteMutation as unknown as jest.Mock;
 const mockShowToast = showToast as unknown as jest.Mock;
 
 const BASE = {
@@ -53,7 +56,13 @@ const setFlow = (finalStatus: string, rejectCreate = false) => {
 beforeEach(() => {
   mockCreate.mockReset();
   mockPoll.mockReset();
+  mockQuote.mockReset();
   mockShowToast.mockReset();
+  // El quote cae al cálculo local en tests (rechaza), para asertar montos locales.
+  mockQuote.mockReturnValue([
+    jest.fn(() => ({ unwrap: () => Promise.reject(new Error('no quote')) })),
+    {},
+  ]);
   setFlow('approved');
 });
 
