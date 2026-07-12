@@ -86,7 +86,16 @@ export const TransactionResultScreen: React.FC<
           <>
             {/* Tarjeta de detalle */}
             <View style={styles.card}>
-              <DetailRow label="Referencia" value={order.id} />
+              <DetailRow label="Referencia de la tienda" value={order.id} />
+              {order.gatewayTransactionId ? (
+                <>
+                  <View style={styles.divider} />
+                  <DetailRow
+                    label="Referencia de la pasarela"
+                    value={order.gatewayTransactionId}
+                  />
+                </>
+              ) : null}
               <View style={styles.divider} />
               <DetailRow label="Fecha" value={formatDateTime(order.createdAt)} />
               <View style={styles.divider} />
@@ -120,7 +129,7 @@ export const TransactionResultScreen: React.FC<
 
               <View style={styles.totalRow}>
                 <AppText variant="labelCaps" color="onSurfaceVariant">
-                  TOTAL PAGADO
+                  {order.status === 'approved' ? 'TOTAL PAGADO' : 'MONTO'}
                 </AppText>
                 <AppText variant="headlineMd" color="onSurface" style={styles.total} testID="result-total">
                   {formatCop(order.amountCop)}

@@ -54,6 +54,8 @@ export type TransactionStatus = 'approved' | 'pending' | 'declined' | 'error';
 export interface TransactionResponse {
   reference: string;
   id: string;
+  /** Referencia de la transacción en la pasarela de pago (null si fue rechazada antes de crearse). */
+  gatewayTransactionId: string | null;
   status: TransactionStatus;
   amountCop: number;
   breakdown: PriceBreakdown;

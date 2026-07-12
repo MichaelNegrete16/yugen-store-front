@@ -33,6 +33,7 @@ const mockShowToast = showToast as unknown as jest.Mock;
 const BASE = {
   reference: 'YUGEN-4242-1',
   id: 'txn1',
+  gatewayTransactionId: 'gw-777',
   amountCop: 395800,
   breakdown: { subtotal: 320000, shipping: 15000, tax: 60800, discount: 0, total: 395800 },
   cardBrand: 'VISA',
@@ -190,24 +191,31 @@ describe('CheckoutScreen', () => {
     expect(createTrigger).toHaveBeenCalledTimes(1);
     expect(pollTrigger).toHaveBeenCalled();
     const state = store.getState();
-    expect(state.orders.items[0]).toMatchObject({ id: 'YUGEN-4242-1', status: 'approved' });
+    expect(state.orders.items[0]).toMatchObject({
+      id: 'YUGEN-4242-1',
+      status: 'approved',
+      gatewayTransactionId: 'gw-777',
+    });
     expect(state.cart.items).toHaveLength(0);
     expect(navigation.navigate).toHaveBeenCalledWith('TransactionResult', {
       transactionId: 'YUGEN-4242-1',
     });
   });
 
-  it('pago rechazado: muestra toast, no navega y conserva el carrito', async () => {
+  it('pago rechazado: registra el pedido, conserva el carrito y navega al resultado', async () => {
     setFlow('declined');
     const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
     const { tree, navigation } = renderScreen(store);
 
     await pay(tree, '4111111111111111');
 
-    expect(mockShowToast).toHaveBeenCalled();
-    expect(navigation.navigate).not.toHaveBeenCalled();
-    expect(store.getState().cart.items).toHaveLength(1);
-    expect(store.getState().orders.items).toHaveLength(0);
+    const state = store.getState();
+    expect(state.orders.items[0]).toMatchObject({ id: 'YUGEN-4242-1', status: 'declined' });
+    // El carrito se conserva para poder reintentar con otra tarjeta.
+    expect(state.cart.items).toHaveLength(1);
+    expect(navigation.navigate).toHaveBeenCalledWith('TransactionResult', {
+      transactionId: 'YUGEN-4242-1',
+    });
   });
 
   it('error de red: muestra toast y no navega', async () => {
