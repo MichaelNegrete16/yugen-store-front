@@ -155,7 +155,9 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           dispatch(api.util.invalidateTags(['Products']));
           showToast('Uno de los artículos está agotado. Actualizamos tu carrito.');
         } else {
-          showToast('No pudimos iniciar el pago. Revisa tu conexión e intenta de nuevo.');
+          // El rechazo de la tarjeta llega como transacción 'declined' (no como
+          // error), así que aquí solo caen fallos reales de red o de servicio.
+          showToast('No pudimos procesar el pago. Intenta de nuevo en unos minutos.');
         }
         return;
       }
@@ -173,6 +175,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
       }
 
       const amount = tx.amountCop || tx.breakdown?.total || summary.total;
+      const status = tx.status === 'error' ? 'declined' : tx.status;
       dispatch(setCustomerEmail(email.trim()));
       dispatch(
         startTransaction({
@@ -182,27 +185,28 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           card: { last4: card.last4, brand: card.brand, holder: card.cardHolder },
         }),
       );
-      dispatch(setTransactionResult({ id: tx.id, status: tx.status, updatedAt: tx.createdAt }));
+      dispatch(setTransactionResult({ id: tx.id, status, updatedAt: tx.createdAt }));
 
-      if (tx.status === 'declined' || tx.status === 'error') {
-        setPayOpen(false);
-        showToast('Pago rechazado. Verifica los datos o intenta con otra tarjeta.');
-        return;
-      }
-
+      // Registramos el pedido pase lo que pase (aprobado/pendiente/rechazado)
+      // para mostrar el resultado y guardarlo en el historial.
       dispatch(
         addOrder({
           id: tx.reference,
+          gatewayTransactionId: tx.gatewayTransactionId ?? null,
           createdAt: tx.createdAt,
           amountCop: amount,
           itemCount,
           productIds,
           cardLast4: tx.cardLast4 || card.last4,
           cardBrand: tx.cardBrand || card.brand,
-          status: tx.status,
+          status,
         }),
       );
-      dispatch(clearCart());
+      // Solo vaciamos el carrito si el pago avanzó; si fue rechazado se
+      // conserva para que el usuario reintente con otra tarjeta.
+      if (status === 'approved' || status === 'pending') {
+        dispatch(clearCart());
+      }
       // Refrescar el historial del backend YA con el estado final.
       dispatch(api.util.invalidateTags(['Orders']));
       setPayOpen(false);
