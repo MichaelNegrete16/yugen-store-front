@@ -11,6 +11,7 @@ import ordersReducer, { Order } from '../src/store/slices/ordersSlice';
 
 const order: Order = {
   id: 'YUGEN-1111-1',
+  gatewayTransactionId: '15113-1783826152-35305',
   createdAt: '2026-07-10T00:48:00.000Z',
   amountCop: 3383100,
   itemCount: 10,
@@ -69,6 +70,23 @@ describe('TransactionResultScreen', () => {
     expect(text).toContain('Juego de Té de Basalto');
     const total = tree.root.findByProps({ testID: 'result-total' });
     expect(collectText(total.props.children).join('')).toContain('$3.383.100');
+  });
+
+  it('muestra ambas referencias: tienda y pasarela', () => {
+    const { tree } = renderScreen(makeStore());
+    const text = collectText(tree.toJSON()).join(' ');
+    expect(text).toContain('Referencia de la tienda');
+    expect(text).toContain('Referencia de la pasarela');
+    expect(text).toContain('15113-1783826152-35305');
+  });
+
+  it('oculta la referencia de la pasarela si no existe (pago rechazado)', () => {
+    const { tree } = renderScreen(
+      makeStore([{ ...order, status: 'declined', gatewayTransactionId: null }]),
+    );
+    const text = collectText(tree.toJSON()).join(' ');
+    expect(text).toContain('Referencia de la tienda');
+    expect(text).not.toContain('Referencia de la pasarela');
   });
 
   it('muestra el encabezado según el estado (rechazada)', () => {
