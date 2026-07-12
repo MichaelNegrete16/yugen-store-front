@@ -69,9 +69,25 @@ Abre la app en el celular. Los cambios de código se reflejan al instante (Fast 
 
 ---
 
-## 4. Generar la APK (release, standalone)
+## 4. APK lista para usar
 
-Genera una APK con el JS empaquetado adentro — **funciona sin Metro ni PC**, solo necesita internet (consume el backend):
+Hay una APK **release** ya compilada y lista para instalar en el repositorio:
+
+```
+apk/YugenStore.apk
+```
+
+Es standalone (JS empaquetado): **funciona sin Metro ni PC**, solo necesita internet (consume el backend desplegado). Para instalarla en un celular conectado por USB:
+
+```powershell
+adb install -r apk/YugenStore.apk
+```
+
+O cópiala al teléfono y ábrela desde el explorador de archivos (permitir "instalar apps de esta fuente").
+
+### Regenerarla
+
+Genera una APK con el JS empaquetado adentro:
 
 ```powershell
 cd yugen-store-front\android
@@ -101,14 +117,14 @@ npm test                 # corre todos los tests
 npm test -- --coverage   # con reporte de cobertura
 ```
 
-**Resultado actual:** 70 tests en 17 suites, todos en verde.
+**Resultado actual:** 80 tests en 18 suites, todos en verde.
 
 | Métrica | Cobertura |
 |---|---|
-| Statements | **85.6%** |
-| Lines | **87.0%** |
-| Branches | 73.3% |
-| Functions | 73.7% |
+| Statements | **86.1%** |
+| Lines | **87.5%** |
+| Branches | 77.5% |
+| Functions | 74.6% |
 
 ---
 
