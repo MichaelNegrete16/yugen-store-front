@@ -4,8 +4,10 @@ export type OrderStatus = 'approved' | 'pending' | 'declined';
 
 /** Un pedido/compra del usuario (para el historial en Perfil). */
 export interface Order {
-  /** Referencia única (la misma que la transacción). */
+  /** Referencia de la tienda (la misma que la transacción). */
   id: string;
+  /** Referencia de la transacción en la pasarela de pago (null si no aplica). */
+  gatewayTransactionId?: string | null;
   createdAt: string;
   amountCop: number;
   itemCount: number;
