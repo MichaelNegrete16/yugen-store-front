@@ -86,11 +86,11 @@ export const TransactionResultScreen: React.FC<
           <>
             {/* Tarjeta de detalle */}
             <View style={styles.card}>
-              <DetailRow label="Referencia de la tienda" value={order.id} />
+              <RefRow label="Referencia de la tienda" value={order.id} />
               {order.gatewayTransactionId ? (
                 <>
                   <View style={styles.divider} />
-                  <DetailRow
+                  <RefRow
                     label="Referencia de la pasarela"
                     value={order.gatewayTransactionId}
                   />
@@ -182,6 +182,21 @@ const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value })
   </View>
 );
 
+/**
+ * Fila apilada para referencias largas: etiqueta arriba y el valor completo
+ * debajo a todo el ancho (seleccionable para copiarlo), sin recortes.
+ */
+const RefRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <View style={styles.refRow}>
+    <AppText variant="labelCaps" color="onSurfaceVariant">
+      {label}
+    </AppText>
+    <AppText variant="bodyMd" color="onSurface" style={styles.refValue} selectable>
+      {value}
+    </AppText>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   scroll: {
@@ -219,6 +234,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   detailValue: { flexShrink: 1, marginLeft: theme.spacing.stackMd, textAlign: 'right' },
+  refRow: { paddingVertical: 10 },
+  refValue: { marginTop: 4, fontVariant: ['tabular-nums'] },
   divider: { height: 1, backgroundColor: theme.colors.outlineVariant, opacity: 0.5 },
   products: {
     marginTop: theme.spacing.stackSm,
