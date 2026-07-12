@@ -13,6 +13,7 @@ import {
   removeItem,
   selectCartCount,
 } from '../store/slices/cartSlice';
+import { soldOutLabel } from '../utils/stock';
 import type { MainTabScreenProps } from '../navigation/types';
 
 /**
@@ -35,16 +36,25 @@ export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
         .map((item) => {
           const product = products.find((p) => p.id === item.productId);
           if (!product) return null;
-          return { product, qty: item.qty, lineTotal: product.priceCop * item.qty };
+          const available = product.stock >= item.qty;
+          return {
+            product,
+            qty: item.qty,
+            lineTotal: product.priceCop * item.qty,
+            available,
+          };
         })
         .filter((l): l is NonNullable<typeof l> => l !== null),
     [cartItems, products],
   );
 
+  // El subtotal y el pago solo cuentan los artículos disponibles.
   const subtotal = useMemo(
-    () => lines.reduce((sum, l) => sum + l.lineTotal, 0),
+    () => lines.reduce((sum, l) => (l.available ? sum + l.lineTotal : sum), 0),
     [lines],
   );
+  const payableCount = lines.filter((l) => l.available).length;
+  const hasSoldOut = lines.some((l) => !l.available);
 
   const empty = lines.length === 0;
 
@@ -86,16 +96,34 @@ export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
               {count} {count === 1 ? 'artículo' : 'artículos'}
             </AppText>
 
-            {lines.map(({ product, qty, lineTotal }) => (
-              <View key={product.id} testID={`cart-line-${product.id}`} style={styles.line}>
+            {lines.map(({ product, qty, lineTotal, available }) => (
+              <View
+                key={product.id}
+                testID={`cart-line-${product.id}`}
+                style={[styles.line, !available && styles.lineSoldOut]}
+              >
                 <RemoteImage uri={product.image} style={styles.thumb} showLabel={false} />
                 <View style={styles.lineBody}>
-                  <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
+                  <AppText
+                    variant="bodyLg"
+                    color={available ? 'onSurface' : 'onSurfaceVariant'}
+                    numberOfLines={2}
+                    style={!available && styles.struck}
+                  >
                     {product.name}
                   </AppText>
-                  <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.unit}>
-                    {formatCop(product.priceCop)} c/u
-                  </AppText>
+                  {available ? (
+                    <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.unit}>
+                      {formatCop(product.priceCop)} c/u
+                    </AppText>
+                  ) : (
+                    <View style={styles.soldOutTag}>
+                      <Icon name="do-not-disturb-on" size={13} color={theme.colors.error} />
+                      <AppText variant="labelCaps" color="error" style={styles.soldOutText}>
+                        {soldOutLabel(product)}
+                      </AppText>
+                    </View>
+                  )}
 
                   <View style={styles.lineFooter}>
                     <View style={styles.qtyControls}>
@@ -117,7 +145,11 @@ export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
                         <Icon name="add" size={18} color={theme.colors.onSurface} />
                       </Pressable>
                     </View>
-                    <AppText variant="bodyLg" color="onSurface" style={styles.lineTotal}>
+                    <AppText
+                      variant="bodyLg"
+                      color={available ? 'onSurface' : 'onSurfaceVariant'}
+                      style={[styles.lineTotal, !available && styles.struck]}
+                    >
                       {formatCop(lineTotal)}
                     </AppText>
                   </View>
@@ -137,6 +169,11 @@ export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
 
           {/* Pie fijo: subtotal + continuar */}
           <View style={[styles.footer, { paddingBottom: (insets.bottom || 12) + 8 }]}>
+            {hasSoldOut ? (
+              <AppText variant="labelCaps" color="error" style={styles.soldOutNote}>
+                Los artículos agotados no se incluirán en el pago
+              </AppText>
+            ) : null}
             <View style={styles.subtotalRow}>
               <AppText variant="labelCaps" color="onSurfaceVariant">
                 Subtotal
@@ -147,9 +184,11 @@ export const CartScreen: React.FC<MainTabScreenProps<'Cart'>> = ({
             </View>
             <Pressable
               testID="continue-button"
-              style={styles.continueButton}
+              style={[styles.continueButton, payableCount === 0 && styles.continueDisabled]}
               onPress={() => navigation.navigate('Checkout')}
+              disabled={payableCount === 0}
               accessibilityRole="button"
+              accessibilityState={{ disabled: payableCount === 0 }}
             >
               <AppText variant="labelCaps" color="onPrimary">
                 Continuar con el pago
@@ -182,6 +221,11 @@ const styles = StyleSheet.create({
   },
   count: { marginBottom: theme.spacing.stackMd },
   line: { flexDirection: 'row', marginBottom: theme.spacing.stackMd },
+  lineSoldOut: { opacity: 0.55 },
+  struck: { textDecorationLine: 'line-through' },
+  soldOutTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  soldOutText: { fontSize: 10, letterSpacing: 0.5 },
+  soldOutNote: { textAlign: 'center', marginBottom: theme.spacing.stackSm },
   thumb: {
     width: 84,
     height: 84,
@@ -232,6 +276,7 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.unit,
     borderRadius: theme.radius.full,
   },
+  continueDisabled: { backgroundColor: theme.colors.surfaceContainerHighest },
   arrowCircle: {
     width: 40,
     height: 40,

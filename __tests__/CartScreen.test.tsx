@@ -7,15 +7,22 @@ import { CartScreen } from '../src/screens/CartScreen';
 import cartReducer, { CartItem, selectCartCount } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
+import { PRODUCTS, Product } from '../src/data/products';
 
-const makeStore = (cartItems: CartItem[] = []) =>
+const withStock = (id: string, stock: number): Product[] =>
+  PRODUCTS.map((p) => (p.id === id ? { ...p, stock } : p));
+
+const makeStore = (cartItems: CartItem[] = [], products: Product[] = PRODUCTS) =>
   configureStore({
     reducer: {
       cart: cartReducer,
       products: productsReducer,
       transaction: transactionReducer,
     },
-    preloadedState: { cart: { items: cartItems } },
+    preloadedState: {
+      cart: { items: cartItems },
+      products: { items: products },
+    },
   });
 
 const metrics = {
@@ -92,5 +99,28 @@ describe('CartScreen', () => {
       tree.root.findByProps({ testID: 'continue-button' }).props.onPress(),
     );
     expect(navigation.navigate).toHaveBeenCalledWith('Checkout');
+  });
+
+  it('marca el artículo agotado y no lo suma al subtotal', () => {
+    const store = makeStore(
+      [
+        { productId: 'tea-set', qty: 2 }, // agotado → no suma
+        { productId: 'writing-set', qty: 1 }, // 245.000
+      ],
+      withStock('tea-set', 0),
+    );
+    const { tree } = renderScreen(store);
+    const all = collectText(tree.toJSON()).join(' ');
+    expect(all).toContain('Agotado');
+    const subtotal = tree.root.findByProps({ testID: 'cart-subtotal' });
+    expect(collectText(subtotal.props.children).join('')).toContain('$245.000');
+  });
+
+  it('deshabilita continuar cuando todo está agotado', () => {
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }], withStock('tea-set', 0));
+    const { tree } = renderScreen(store);
+    expect(
+      tree.root.findByProps({ testID: 'continue-button' }).props.accessibilityState,
+    ).toEqual({ disabled: true });
   });
 });
