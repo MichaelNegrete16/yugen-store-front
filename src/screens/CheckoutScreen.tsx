@@ -28,6 +28,7 @@ import {
   PriceBreakdown,
 } from '../api/apiSlice';
 import { showToast } from '../utils/toast';
+import { isOutOfStockError, soldOutLabel } from '../utils/stock';
 import type { ConfirmedCard } from '../components/PaymentDrawer';
 import type { RootStackScreenProps } from '../navigation/types';
 
@@ -57,15 +58,25 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
         .map((item) => {
           const product = products.find((p) => p.id === item.productId);
           if (!product) return null;
-          return { product, qty: item.qty, lineTotal: product.priceCop * item.qty };
+          const available = product.stock >= item.qty;
+          return {
+            product,
+            qty: item.qty,
+            lineTotal: product.priceCop * item.qty,
+            available,
+          };
         })
         .filter((l): l is NonNullable<typeof l> => l !== null),
     [cartItems, products],
   );
 
+  // Solo se cobran los disponibles: los agotados no entran al total ni se envían.
+  const payableLines = useMemo(() => lines.filter((l) => l.available), [lines]);
+  const hasSoldOut = lines.some((l) => !l.available);
+
   const subtotal = useMemo(
-    () => lines.reduce((sum, l) => sum + l.lineTotal, 0),
-    [lines],
+    () => payableLines.reduce((sum, l) => sum + l.lineTotal, 0),
+    [payableLines],
   );
   const localSummary = useMemo(
     () => computeOrderSummary(subtotal, DISCOUNT_CODE),
@@ -73,17 +84,18 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
   );
 
   const empty = lines.length === 0;
+  const nothingToPay = payableLines.length === 0;
 
   const [fetchQuote] = useQuoteMutation();
   const [remoteSummary, setRemoteSummary] = useState<PriceBreakdown | null>(null);
   useEffect(() => {
-    if (empty) {
+    if (nothingToPay) {
       setRemoteSummary(null);
       return;
     }
     let cancelled = false;
     fetchQuote({
-      items: cartItems.map((i) => ({ productId: i.productId, qty: i.qty })),
+      items: payableLines.map((l) => ({ productId: l.product.id, qty: l.qty })),
       discountCode: DISCOUNT_CODE,
     })
       .unwrap()
@@ -92,7 +104,7 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
     return () => {
       cancelled = true;
     };
-  }, [cartItems, empty, fetchQuote]);
+  }, [payableLines, nothingToPay, fetchQuote]);
 
   const summary = remoteSummary ?? localSummary;
 
@@ -105,10 +117,10 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
     postal.trim().length > 0;
 
   const handleConfirm = async (card: ConfirmedCard) => {
-    const productIds = lines.map((l) => l.product.id);
-    const itemCount = lines.reduce((sum, l) => sum + l.qty, 0);
-    const items = lines.map((l) => ({ productId: l.product.id, qty: l.qty }));
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const productIds = payableLines.map((l) => l.product.id);
+    const itemCount = payableLines.reduce((sum, l) => sum + l.qty, 0);
+    const items = payableLines.map((l) => ({ productId: l.product.id, qty: l.qty }));
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(() => r(), ms));
 
     setProcessing(true);
     try {
@@ -135,9 +147,16 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
             installments: 1,
           },
         }).unwrap();
-      } catch {
+      } catch (err) {
         setPayOpen(false);
-        showToast('No pudimos iniciar el pago. Revisa tu conexión e intenta de nuevo.');
+        // Si el backend rechaza por stock (422), el catálogo quedó desfasado:
+        // refrescamos productos y avisamos que hay algo agotado.
+        if (isOutOfStockError(err)) {
+          dispatch(api.util.invalidateTags(['Products']));
+          showToast('Uno de los artículos está agotado. Actualizamos tu carrito.');
+        } else {
+          showToast('No pudimos iniciar el pago. Revisa tu conexión e intenta de nuevo.');
+        }
         return;
       }
 
@@ -254,14 +273,30 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
           <AppText variant="labelCaps" color="onSurfaceVariant" style={styles.sectionLabel}>
             02 — ARTÍCULOS
           </AppText>
-          {lines.map(({ product, qty, lineTotal }) => (
-            <View key={product.id} testID={`item-${product.id}`} style={styles.item}>
+          {lines.map(({ product, qty, lineTotal, available }) => (
+            <View
+              key={product.id}
+              testID={`item-${product.id}`}
+              style={[styles.item, !available && styles.itemSoldOut]}
+            >
               <RemoteImage uri={product.image} style={styles.thumb} showLabel={false} />
               <View style={styles.itemBody}>
-                <AppText variant="bodyLg" color="onSurface" numberOfLines={2}>
+                <AppText
+                  variant="bodyLg"
+                  color={available ? 'onSurface' : 'onSurfaceVariant'}
+                  numberOfLines={2}
+                  style={!available && styles.struck}
+                >
                   {product.name}
                 </AppText>
-                {product.artisan ? (
+                {!available ? (
+                  <View style={styles.soldOutTag}>
+                    <Icon name="do-not-disturb-on" size={13} color={theme.colors.error} />
+                    <AppText variant="labelCaps" color="error" style={styles.soldOutText}>
+                      {soldOutLabel(product)} · no se cobra
+                    </AppText>
+                  </View>
+                ) : product.artisan ? (
                   <AppText variant="bodyMd" color="onSurfaceVariant" style={styles.artisan}>
                     Artesano: {product.artisan}
                   </AppText>
@@ -270,7 +305,11 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
                   <AppText variant="bodyMd" color="onSurfaceVariant">
                     Cantidad: {qty}
                   </AppText>
-                  <AppText variant="bodyLg" color="primary" style={styles.itemPrice}>
+                  <AppText
+                    variant="bodyLg"
+                    color={available ? 'primary' : 'onSurfaceVariant'}
+                    style={[styles.itemPrice, !available && styles.struck]}
+                  >
                     {formatCop(lineTotal)}
                   </AppText>
                 </View>
@@ -305,11 +344,11 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
 
             <Pressable
               testID="pay-button"
-              style={[styles.payButton, !shippingComplete && styles.payButtonDisabled]}
+              style={[styles.payButton, (!shippingComplete || nothingToPay) && styles.payButtonDisabled]}
               onPress={() => setPayOpen(true)}
-              disabled={!shippingComplete}
+              disabled={!shippingComplete || nothingToPay}
               accessibilityRole="button"
-              accessibilityState={{ disabled: !shippingComplete }}
+              accessibilityState={{ disabled: !shippingComplete || nothingToPay }}
             >
               <AppText variant="labelCaps" color="onPrimary">
                 Pagar con tarjeta
@@ -318,10 +357,14 @@ export const CheckoutScreen: React.FC<RootStackScreenProps<'Checkout'>> = ({
             </Pressable>
             <AppText
               variant="labelCaps"
-              color={shippingComplete ? 'onSurfaceVariant' : 'error'}
+              color={shippingComplete && !nothingToPay ? 'onSurfaceVariant' : 'error'}
               style={styles.secure}
             >
-              {shippingComplete
+              {nothingToPay
+                ? 'Todos los artículos están agotados'
+                : hasSoldOut
+                ? 'Los artículos agotados no se cobrarán'
+                : shippingComplete
                 ? 'Pago cifrado SSL • Devoluciones en 30 días'
                 : 'Completa tus datos de envío para continuar'}
             </AppText>
@@ -425,6 +468,10 @@ const styles = StyleSheet.create({
     padding: theme.spacing.stackSm,
     marginBottom: theme.spacing.stackSm,
   },
+  itemSoldOut: { opacity: 0.55 },
+  struck: { textDecorationLine: 'line-through' },
+  soldOutTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  soldOutText: { fontSize: 10, letterSpacing: 0.5 },
   thumb: {
     width: 88,
     height: 88,

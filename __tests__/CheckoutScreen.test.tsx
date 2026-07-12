@@ -23,6 +23,7 @@ import cartReducer, { CartItem } from '../src/store/slices/cartSlice';
 import productsReducer from '../src/store/slices/productsSlice';
 import transactionReducer from '../src/store/slices/transactionSlice';
 import ordersReducer from '../src/store/slices/ordersSlice';
+import { PRODUCTS, Product } from '../src/data/products';
 
 const mockCreate = useCreateTransactionMutation as unknown as jest.Mock;
 const mockPoll = useLazyGetTransactionQuery as unknown as jest.Mock;
@@ -67,7 +68,10 @@ beforeEach(() => {
   setFlow('approved');
 });
 
-const makeStore = (cartItems: CartItem[] = []) =>
+const withStock = (id: string, stock: number): Product[] =>
+  PRODUCTS.map((p) => (p.id === id ? { ...p, stock } : p));
+
+const makeStore = (cartItems: CartItem[] = [], products: Product[] = PRODUCTS) =>
   configureStore({
     reducer: {
       cart: cartReducer,
@@ -75,7 +79,10 @@ const makeStore = (cartItems: CartItem[] = []) =>
       transaction: transactionReducer,
       orders: ordersReducer,
     },
-    preloadedState: { cart: { items: cartItems } },
+    preloadedState: {
+      cart: { items: cartItems },
+      products: { items: products },
+    },
   });
 
 const metrics = {
@@ -212,5 +219,60 @@ describe('CheckoutScreen', () => {
 
     expect(mockShowToast).toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('marca el artículo agotado y lo excluye del gran total', () => {
+    const conAgotado = renderScreen(
+      makeStore(
+        [
+          { productId: 'tea-set', qty: 2 },
+          { productId: 'writing-set', qty: 1 },
+        ],
+        withStock('tea-set', 0),
+      ),
+    );
+    const soloDisponible = renderScreen(makeStore([{ productId: 'writing-set', qty: 1 }]));
+
+    const totalConAgotado = collectText(
+      conAgotado.tree.root.findByProps({ testID: 'grand-total' }).props.children,
+    ).join('');
+    const totalSolo = collectText(
+      soloDisponible.tree.root.findByProps({ testID: 'grand-total' }).props.children,
+    ).join('');
+
+    // El agotado no suma al total: coincide con pagar solo el disponible.
+    expect(totalConAgotado).toBe(totalSolo);
+    expect(collectText(conAgotado.tree.toJSON()).join(' ')).toContain('Agotado');
+  });
+
+  it('deshabilita el pago cuando todo está agotado', () => {
+    const { tree } = renderScreen(
+      makeStore([{ productId: 'tea-set', qty: 1 }], withStock('tea-set', 0)),
+    );
+    fillShipping(tree);
+    expect(
+      tree.root.findByProps({ testID: 'pay-button' }).props.accessibilityState,
+    ).toEqual({ disabled: true });
+  });
+
+  it('422 de stock: muestra que el artículo está agotado (no el error genérico)', async () => {
+    const createTrigger = jest.fn(() => ({
+      unwrap: () =>
+        Promise.reject({
+          status: 422,
+          data: { message: 'Sin stock suficiente para tea-set (disponible: 0)' },
+        }),
+    }));
+    mockCreate.mockReturnValue([createTrigger, { isLoading: false }]);
+    mockPoll.mockReturnValue([jest.fn(() => ({ unwrap: () => Promise.resolve(BASE) }))]);
+
+    const store = makeStore([{ productId: 'tea-set', qty: 1 }]);
+    const { tree, navigation } = renderScreen(store);
+
+    await pay(tree, '4242424242424242');
+
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('agotado'));
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(store.getState().cart.items).toHaveLength(1);
   });
 });
